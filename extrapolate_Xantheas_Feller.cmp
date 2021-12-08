@@ -1,0 +1,68 @@
+# Name: Extrapolate-Xantheas-Feller
+#
+# *************************************** DESCRIPTION ***********************************************
+# This is a three-point extrapolation scheme to the complete basis set limit for the total 
+# electronic energy. Is is based on:
+# 'Theoretical Estimate of the Enthalpy of Formation of HSO and the HSO-SOH Isomerization Energy' 
+# Sotiris S. Xantheas’ and Thom H. Dunning, Jr, J . Phys. Chem. 1993, 97, 18-19.
+ # Almost at the same time also this publication used the same extrapolation protocol:
+# 'The use of systematic sequences of wave functions for estimating the complete basis set, full 
+# configuration interaction limit in water'
+# David Feller, J. Chem. Phys. 1993, 98, 7059-7071
+#  The funtion that describes the convergence of the energy is used is:
+#                        E(X)=E(CBS)+Bexp(-CX)
+#  And using three basis sets with cardinal numbers X, X+1 and X+2 the final equation becomes:
+#            E(CBS}=[E(X+2)E(X)-E(X+1)E(X+1)]/[E(X+2)+E(X)-2E(X+1)]
+# Using this form and DZ,TZ and QZ basis sets the E(CBS) is:
+#
+# *************************************** LITERATURE  ************************************************
+#
+# The description of the protocol :  J. Phys. Chem. 1993, 97, 18-19
+# The description of the protocol :  J. Chem. Phys. 1993, 98, 7059-7071#
+# ***************************************   DETAILS   ************************************************
+#
+# This scheme needs 3 steps:
+# In Step 1 Perform a calculation with basis set with cardinal number X   (here aug-cc-pVDZ)
+# In Step 2 Perform a calculation with basis set with cardinal number X+1 (here aug-cc-pVTZ)
+# In Step 3 Perform a calculation with basis set with cardinal number X+2 (here aug-cc-pVQZ)
+# 
+# From calculations of Steps 1, 2 and 3 we get the total energy and apply the equation given above
+#
+# ******************************************   NOTES   ************************************************
+# NOTE 1: No empirical parameter is used here so one can just make changes in the method. Here we use 
+#         the DLPON-CCSD(T1) method (just because of it's efficiency but obviously one can change it.
+#
+# ******************************************  METHOD   ************************************************
+#
+#
+
+# Define variables
+variable E_DZ, E_TZ, E_QZ;  # The energies 
+variable E_CBS;             # The CBS energy
+
+#----------------------------------------------------------
+# (Calculation 1)
+# Double zeta calculation 
+New_Step
+! DLPNO-CCSD(T1) aug-cc-pVDZ aug-cc-pVDZ/C VeryTightSCF 
+STEP_END
+read E_DZ = MDCI_TOTAL_ENERGY[1];     
+
+#----------------------------------------------------------
+# (Calculation 2)
+# Triple zeta calculation 
+New_Step
+! DLPNO-CCSD(T1) aug-cc-pVTZ aug-cc-pVTZ/C VeryTightSCF 
+STEP_END
+read E_TZ = MDCI_TOTAL_ENERGY[2];       
+
+#----------------------------------------------------------
+# (Calculation 3)
+# Quadruple zeta calculation 
+New_Step
+! DLPNO-CCSD(T1) aug-cc-pVQZ aug-cc-pVQZ/C VeryTightSCF 
+STEP_END
+read E_QZ = MDCI_TOTAL_ENERGY[3];     
+#Now extrapolate
+E_CBS = (E_QZ*E_DZ-E_TZ*E_TZ)/(E_QZ+E_DZ-2*E_TZ); 
+END

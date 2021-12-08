@@ -1,0 +1,92 @@
+# Name: G2-MP2-SV-Atom
+#
+# *************************************** DESCRIPTION ***********************************************
+#
+#   This is the G2(MP2,SV) composite method based on: L. A. Curtiss et al. J. Chem. Phys 104, 5148, (1996)
+# This is the version for atoms. We do not need the steps with optimization and frequencies.
+#
+# *************************************** LITERATURE  ************************************************
+#
+# Description of the protocol                           : J. Chem. Phys 104, 5148, (1996)
+#
+# ***************************************   DETAILS   ************************************************
+#
+#
+# ******************************************   NOTES   ************************************************
+# NOTE 1: Even though we do not need the optimization and frequency steps we keep the (adjusted) just 
+#         for consistency with the normal version
+#
+# ******************************************  METHOD   ************************************************
+#
+#
+
+# Define some variables
+variable ESmallMP2, EBigMP2, EQCISDT;  
+variable DEMP2;                        
+variable Scale, ZPE, ZPEScaled;        
+variable aElectrons, bElectrons;       
+variable alpha, beta, HLC;             
+variable FinalEnergy;                  
+
+#----------------------------------------------------------
+# (Calculation 1)
+# the ZPE correction from HF 
+New_Step
+! HF 6-31G(d) VeryTightSCF
+STEP_END
+#read ZPE   = THERMO_ZPE[1];    
+Scale = 0.0;             
+ZPEScaled = Scale*ZPE;   
+
+#----------------------------------------------------------
+# (Calculation 2)
+# First optimize at the MP2 level with 6-31G(d) 
+New_Step
+! MP2 6-31G(d) NoFrozenCore VeryTightSCF
+STEP_END
+
+#----------------------------------------------------------
+# (Calculation 3)
+# The MP2 correlation energy with 6-31G
+New_Step
+!MP2 6-31G
+Step_End
+alias_step SmallMP2
+
+#----------------------------------------------------------
+# (Calculation 4)
+# The MP2 correlation energy 6-311+G(3df,2p). 
+New_Step
+!MP2 6-311+G(3df,2p)
+Step_End
+alias_step BigMP2
+
+read ESmallMP2 = MP2_Total_Energy[SmallMP2];  
+read EBigMP2 = MP2_Total_Energy[BigMP2];      
+
+# Calculate the DEMP2 correction
+DEMP2 = EBigMP2 - ESmallMP2; 
+
+#----------------------------------------------------------
+# (Calculation 5)
+# The total QCISD(T) energy with 6-31G 
+New_Step
+!QCISD(T) 6-31G
+Step_End
+
+read EQCISDT = MDCI_Total_Energy[5];  
+
+#For HLC correction we need the number of electrons
+read aElectrons = MDCI_CORR_ALPHA_ELECTRONS[5]; 
+read bElectrons = MDCI_CORR_BETA_ELECTRONS[5];  
+
+# The HLC correction. The alpha and beta values come from the
+# referenced article.  
+alpha = 3.22;   
+beta  = 0.19;   
+HLC   = (-alpha*bElectrons-beta*aElectrons)/1000; 
+
+# Finally sum all contributions
+FinalEnergy = EQCISDT + DEMP2 + HLC + ZPEScaled;  
+END
+#

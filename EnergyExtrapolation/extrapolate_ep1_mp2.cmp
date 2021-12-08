@@ -1,0 +1,95 @@
+# Name: Extrapolate-EP2-MP2
+#
+# *************************************** DESCRIPTION ***********************************************
+#
+#   This protocol estimates the complete basis limit (CBS) extrapolated electronic energy of MP2 
+# calculations.
+#
+# *************************************** LITERATURE  ************************************************
+#
+# A description of the notation we use here             : J. Phys. Chem. A 2012, 116, 19, 4801-4816
+# The exponents used for the extrapolations             : J. Chem. Theory Comput., 7, 33-43 (2011) 
+# Original formulation of the SCF extrapolation         : J. Chem. Phys. 2008, 129, 184116
+# Original formulation of the correlation extrapolation : J. Chem. Phys. 1997, 106, 9639
+#
+# ***************************************   DETAILS   ************************************************
+#
+# This scheme needs 2 steps:
+# In Step 1 We perform an MP2 calculation with a basis set X (in the current case we have chosen
+#           cc-pVDZ).
+# In Step 2 We perform an MP2 calculation with a basis set Y that has a cardinal number larger than
+#           the basis set X by 1 (in the current case we have chosen cc-pVTZ).
+# 
+# From calculations in Step 1 and Step 2 we get the Hartree-Fock energy and calculate the
+#   SCF extrapolated energy (CBS_SCF) using the two point extrapolation equation:  
+#                   SCF(X) = SCF(CBS)+Aexp(-a*SQRT(X))
+# Similarly From calculations in Step 2 and Step 3 we get the correlation energy and calculate 
+#   the CBS extrapolated MP2 correlation energy (CBS_MP2) using the two point extrapolation
+#   equation:
+#             CBS(MP2)=(X^b*E_X(MP2)-Y^b*E_Y(MP2))/(X^b-Y^b):
+# And thus the extrapolation energy:
+#          CBS Total = CBS_SCF + CBS_MP2 
+#
+# ******************************************   NOTES   ************************************************
+# NOTE 1: The basis sets chosen can of course change. Nevertheless one should always take care to adjust
+#          all of them appropriately and then to also adjust the values of alpha and beta.
+# NOTE 2: For the MP2 calculation we use the RI version which should have negligible effects in the 
+#         accuracy.
+#
+# ******************************************  METHOD   ************************************************
+#
+#
+#Define some variables
+Variable  X, Y;             #The cardinal numbers
+Variable  alpha, beta;      #The exponents
+Variable  SCF_X, SCF_Y;     #The SCF energies
+Variable  eX, eY;           #Useful temporary intermediates
+Variable  MP2_X, MP2_Y;     #The MP2 correlation energies
+Variable  CBS_SCF, CBS_MP2; #The extrapolated components
+Variable  CBS_Total;        #The extrapolated total energy
+#
+#
+#These values depend on the choice of the basis set
+#that we need
+X     = 2;          #Double zeta
+Y     = 3;          #triple zeta
+alpha = 4.420;      #based on F. Neese et al. JCTC, 7,33-43 (2011)
+beta  = 2.460;      
+#
+#----------------------------------------------------------
+#MP2 Calculation with small basis set
+#(Calculation 1)
+New_Step
+!MP2 cc-pVDZ cc-pVTZ/C VeryTightSCF
+%MaxCore 10000
+Step_End
+#Read the values
+Read SCF_X    = MP2_REF_ENERGY[1];  
+Read MP2_X    = MP2_CORR_ENERGY[1]; 
+eX     = exp(-alpha*sqrt(X)); 
+#
+#----------------------------------------------------------
+#MP2Calculation with larger basis set
+#(Calculation 2)
+New_Step
+!MP2 cc-pVTZ cc-pVTZ/C VeryTightSCF
+%MaxCore 10000
+Step_End
+#Read the values
+Read SCF_Y    = MP2_REF_ENERGY[2];   
+Read MP2_Y    = MP2_CORR_ENERGY[2];  
+eY = exp(-alpha*sqrt(Y));            
+#
+#
+#Extrapolate SCF
+CBS_SCF = (SCF_X*eY - SCF_Y*eX)/(eY-eX);  
+#
+#Extrapolate the MP2 energy
+CBS_MP2 = (X^beta*MP2_X - Y^beta*MP2_Y)/(X^beta-Y^beta); 
+#
+#Sum up
+CBS_Total = CBS_SCF + CBS_MP2;               
+#
+#Final end
+End
+#

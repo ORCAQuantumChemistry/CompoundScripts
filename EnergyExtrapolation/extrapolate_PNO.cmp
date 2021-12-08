@@ -1,0 +1,81 @@
+# Name: Extrapolate-PNO
+#
+# *************************************** DESCRIPTION ***********************************************
+# This is a two point extrapolation scheme based on DLPNO-CCSD(T)
+# as explained in: Ahmet Altun, Frank Neese, Giovanni Bistoni* JCTC 2020, 16, 10, 6142–6149 
+# The basic idea is that one can use two DLPNO-CCSD(T) calculations with different
+# TCutPNO thresholds and then using these two extrapolates to the limit using the function:
+#                      E(CBS) =E(X)+F*(E(Y)-E(X))
+# where E(X) is the energy obtaind with the small TCutPNO threshold (e.g. 1e-5) and E(Y) 
+# is the tighter TCutPNO threshold (e.g. 1e-6)
+# 
+# For the combination 1e-5/1e-6 the paper reports MAE between 0.2 and 0.3 kcal/mol for reaction 
+# energies on a variety of datasets of GMTKN55 superset.
+# The combination 1e-6/1e-7 produces MAEs between 0.08 to 0.27 kcal/mol for the same set of 
+# molecules
+#
+# The method needs two calculations where the second one uses a tighter TCutPNO threshold and thus 
+# is the more expensive one.
+# 
+# F in the original article is set to 1.5
+#
+#
+# *************************************** LITERATURE  ************************************************
+#
+# The description of the protocol :  Ahmet Altun, Frank Neese, Giovanni Bistoni* JCTC submitted
+#
+# ***************************************   DETAILS   ************************************************
+#
+# This scheme needs 2 steps:
+# In Step 1 Perform a calculation with a small TCutPNO
+# In Step 2 Perform a calculation with a larger TCutPNO
+# 
+# From calculations of Steps 1, 2 and get the correlation energy and apply the equation given above
+#
+# ******************************************   NOTES   ************************************************
+# NOTE 1: One can change the values of TCutPNO manually but they should remain consecutive 
+#         (e.g. 3 and 4 or 4 and 5 ...). Here we have chosen 1e-6 and 1e-7.
+# NOTE 2: One can change the basis set. Here we use the cc-pVTZ and the corresponding /C
+#
+# ******************************************  METHOD   ************************************************
+#
+#
+#
+# Define variables
+variable F = 1.5;                # The mulitplier 
+variable E_HF;             # The Reference energy
+variable E_X, E_Y;         # The Correlation energies
+variable ECORR_CBS, E_CBS; # The CBS energies
+variable basis_set = "cc-pVTZ";
+variable aux_basis = "cc-pVTZ/C";
+Variable smallTCutPNO = 1e-7;
+Variable bigTCutPNO   = 1e-6;
+
+F = 1.5;                   # Set the value of F
+#----------------------------------------------------------
+# (Calculation 1)
+# The calculation with the small X
+New_Step
+! DLPNO-CCSD(T1) &{basis_set} &{aux_basis} VeryTightSCF 
+% MDCI
+     TCutPNO  &{bigTCutPNO} 
+  END
+STEP_END
+read E_HF = MDCI_REF_ENERGY[1];   
+read E_X  = MDCI_CORR_ENERGY[1];  
+
+#----------------------------------------------------------
+# (Calculation 2)
+# The calculation with the small X
+New_Step
+! DLPNO-CCSD(T1) &{basis_set} &{aux_basis}  VeryTightSCF 
+% MDCI
+     TCutPNO  &{SmallTCutPNO} 
+  END
+STEP_END
+read E_Y = MDCI_CORR_ENERGY[2];    
+
+#----------------------------------------------------------
+ECORR_CBS = E_X+F*(E_Y-E_X);     
+E_CBS = E_HF + ECORR_CBS;        
+End

@@ -1,0 +1,81 @@
+# Name: IterativeOptimization
+#
+# *************************************** DESCRIPTION ***********************************************
+# iterative Optimization protocol to find structure with no negative
+# frequencies (e.g. real minima)
+#  
+# Step 1. Run an optimization and frequencies outside the loop
+# Step 2. Check the frequencies. If there are negative ones
+#         use the hessian of the appropriate normal mode to adjust
+#         the geometry
+#
+# ***************************************   DETAILS   ************************************************
+# MaxNTries  : maximum number of tries to find a minimum
+# CutOff     : CutOff frequency that is still acceptable (negative, in cm**-1)
+# ******************************************  METHOD   ************************************************
+#
+#
+#
+# Define variables
+Variable MaxNTries    =  25;
+Variable CutOff       = -50;
+Variable displacement = 0.6;
+Variable NNegative =   0;
+Variable freqs[];
+Variable modes[];
+Variable NFreq;
+Variable limit;
+Variable done;
+Variable FinalEnergy; 
+
+# ===========================================================
+# Start a for loop over number of tries
+# ===========================================================
+For itry From 1 To maxNTries Do
+
+  # ----------------------------------
+  # Run a geometry optimization
+  # ----------------------------------
+  New_Step
+   ! tightopt freq verytightscf nopop def2-TZVP xyzfile
+  Step_End
+  Read freqs  = THERMO_FREQS[itry];
+  Read modes  = HESSIAN_MODES[itry];
+  Read NFreq  = THERMO_NUM_OF_FREQS[itry];
+  limit = NFreq - 1;
+  # ----------------------------------
+  #  check for sufficeintly negative 
+  #  frequencies
+  # ----------------------------------
+  NNegative = 0;
+  For ifreq From 0 to limit Do
+    if ( freqs[ifreq] < CutOff )  then
+       New_Geom = Displace itry  modes  ifreq displacement
+       NNegative = NNegative + 1;
+    endif
+  endfor
+  If ( NNegative = 0) then
+    goto OptDone;
+  endif
+endfor
+
+OptDone :
+if (NNegative>0) then
+  done = 0;
+  print("ERROR The program did not find a minimum. There are %9.3lf negative frequencies after %9.3lf steps", NNegative,itry);
+  #abort();
+else
+  done = 1;
+  print("SUCCESS minimum found after %9.3lf steps", itry);
+endif
+
+# ===========================================================
+# Calculate an accurate single point energy or whatever
+# ===========================================================
+New_Step
+  ! DLPNO-CCSD(T) cc-pVTZ cc-pVTZ/C TightPNO verytightscf 
+Step_End
+Alias FinalStep
+#
+Read FinalEnergy = MDCI_TOTAL_ENERGY[FinalStep];             
+End

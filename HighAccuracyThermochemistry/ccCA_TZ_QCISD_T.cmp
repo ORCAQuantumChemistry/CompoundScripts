@@ -1,0 +1,89 @@
+# Name: ccCA_TZ_QCISD_T
+#
+# *************************************** DESCRIPTION ***********************************************
+#
+#   This is the ccCA-TZ scheme by N. J. DeYonker, T. R. Cundari, and A. K. Wilson based on:
+#   J. Chem. Phys. 124, 114104 (2006) 
+#
+# *************************************** LITERATURE  ************************************************
+#
+# Description of the protocol                           : J. Chem. Phys. 124, 114104 (2006)
+#
+# ***************************************   DETAILS   ************************************************
+# The protocol consists of 6 steps
+#
+# ******************************************   NOTES   ************************************************
+# NOTE 1: For reference energy instead of MP4 we use QCISD(T) In this case we do not add the 
+#         DE(QCI) correction
+#
+# ******************************************  METHOD   ************************************************
+#
+#
+
+# Define some variables
+variable ZPE;                   # The ZPE correction 
+variable Scale, ZPEScaled;      # The scaling for the ZPE
+variable ERef;                  # The total Reference energy
+variable EPlus, DEPlus;         # The total 'diffuse energy' and the corresponding correction
+variable EPol, DEPol;           # The total 'polarization energy' and the corresponding correction
+variable ECV,  DECV;            # The core valence energy and the corresponding correction
+variable EMP2Full, EMP2FC;      # Full MP2, MP2 with frozen core and DCV
+variable HartreeToKcal;         
+variable FinalEnergy;           
+
+#----------------------------------------------------------
+# (Calculation 1)
+#Optimization and ZPE 
+New_Step
+! B3LYP 6-31G* VeryTightSCF Opt Freq DefGrid3
+STEP_END
+Scale = 0.9854;             
+read ZPE = THERMO_ZPE[1];   
+ZPEScaled = Scale*ZPE;      
+
+#---------------------------------------------------------
+# (Calculation 2)
+# Reference energy
+New_Step
+ !QCISD(T) cc-pVTZ VeryTightSCF
+STEP_END
+read ERef = MDCI_TOTAL_ENERGY[2]; 
+
+#---------------------------------------------------------
+# (Calculation 3)
+# DE+ correction
+New_Step
+  !QCISD(T) aug-cc-pVTZ VeryTightSCF
+STEP_END
+read EPlus = MDCI_TOTAL_ENERGY[3]; 
+DEPlus = EPlus - ERef;             
+
+#---------------------------------------------------------
+# (Calculation 4)
+# DE polarization
+New_Step
+!QCISD(T) cc-pVQZ VeryTightSCF
+STEP_END
+read EPol = MDCI_TOTAL_ENERGY[4]; 
+DEPol = EPol - ERef;       
+
+#---------------------------------------------------------
+# (Calculation 5)
+# MP2 Full
+New_Step
+! MP2 NoFrozenCore aug-cc-pCVTZ VeryTightSCF
+STEP_END
+read EMP2Full = MP2_TOTAL_ENERGY[5]; 
+
+#---------------------------------------------------------
+# (Calculation 6)
+# MP2 Frozen core / DECV
+New_Step
+! MP2 aug-cc-pVTZ VeryTightSCF
+STEP_END
+read EMP2FC = MP2_TOTAL_ENERGY[6]; 
+DECV = EMP2Full - EMP2FC;          
+
+#---------------------------------------------------------
+FinalEnergy = ERef + ZPEScaled + DEPlus + DEPol + DECV;   
+END

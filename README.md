@@ -19,7 +19,7 @@ Also, a complicated workflow can be run in a single computation---no need to wai
 
 ## How do I contribute?
 
-If you want to share your work, please do so! Keep in mind that your script will be published under the MIT license, and that you must have the rights to share.
+If you want to share your work, please do so! Keep in mind that your script will be published under the [MIT license](LICENSE), and that you must have the rights to share.
 
 The actual sharing process is simple: Fork the repository and create a pull request. Or just head over to the [ORCA forum][1] and let us help you there!
 

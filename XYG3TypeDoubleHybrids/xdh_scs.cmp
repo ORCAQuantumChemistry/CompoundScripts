@@ -1,0 +1,75 @@
+#
+# XYGJ-OS with RI-MP2
+#
+# Final energy : EDH
+#
+
+Variable xc = "xyg3";
+Variable basis = "def2-svp";
+Variable auxbas = "def2-svp/c";
+Variable dlpno = "false";
+
+Variable acm[3] ;
+Variable scalldac;
+Variable pt2_coeff;
+Variable ss = 1.0;
+Variable os = 1.0;
+Variable Enscf;
+Variable Ept2;
+Variable Edh;
+
+if (xc = "xygjos") then
+ pt2_coeff = 0.4364;
+ ss = 0.0;
+ acm[0] = 0.7731;
+ acm[1] = 0.0 ;
+ acm[2] = 0.2754;
+ scalldac = 0.5063; 
+endif
+
+New_Step
+! b3lyp_g &{basis}
+! noautostart
+Step_End
+Alias scf
+
+Read_Geom scf
+Read_Mos scf
+New_Step
+! b3lyp_g &{basis}
+!  nopop 
+%scf 
+ maxiter 1 
+ ignoreconv true
+end
+%method
+ Functional b3lyp_g
+ ACM = &{acm[0]}, &{acm[1]},&{acm[2]}
+ ScalLDAC = &{scalldac}
+end
+Step_End
+Alias nscf
+
+Read_Geom scf
+Read_Mos scf
+New_Step
+! RI-MP2 &{basis} &{auxbas}
+! noiter nopop
+! nofrozencore
+%mp2
+ dlpno &{dlpno}
+ doscs true
+ ps &{os}
+ pt &{ss}
+end
+Step_End
+Alias pt2
+
+read Enscf = SCF_ENERGY[nscf];
+read Ept2 = MP2_CORR_ENERGY[pt2];
+
+Edh = (Enscf + Ept2*pt2_coeff);
+#print("%s Results", xc);
+#print("Total energy: %lf", Edh);
+
+End

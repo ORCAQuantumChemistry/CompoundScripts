@@ -1,0 +1,28 @@
+
+*xyz 0 1
+N  0.0       0.0       0.108827
+H  0.0       0.947455 -0.253931
+H  0.820520 -0.473727 -0.253931
+H -0.820520 -0.473727 -0.253931
+*
+%pal nprocs 4 end
+%maxcore 1000
+
+%compound "xdh.cmp"
+  with
+    xc = "xyg3";
+    basis = "def2-svp";
+    auxbas = "def2-svp/c";
+    # optional params
+    # dlpno = "true";
+end
+
+# EDH: -56.459
+
+# for xygjos
+#%compound "xdh_scs.cmp"
+#  with
+#    xc = "xygjos";
+#    basis = "def2-svp";
+#    auxbas = "def2-svp/c";
+#end

@@ -3,7 +3,11 @@
 #
 # Final energy : EDH
 #
-Variable xc = "xyg3";
+Variable xc;
+# ixc functional
+#  3    XYG3
+#  31   revXYG3
+Variable ixc = 3;
 Variable basis = "def2-svp";
 Variable auxbas = "def2-svp/c";
 Variable dlpno = "false";
@@ -15,12 +19,20 @@ Variable Enscf;
 Variable Ept2;
 Variable Edh;
 
-if (xc = "xyg3") then
+if (ixc = 3) then
+ xc = "XYG3";
  pt2_coeff = 0.3211;
  acm[0] = 0.8033;
  acm[1] = 0.2107;
  acm[2] = 0.6789;
  scalldac = 0.6789;
+Else if (ixc = 31) then
+ xc = "revXYG3";
+ pt2_coeff = 0.3941;
+ acm[0] = 0.9196;
+ acm[1] = 0.1026;
+ acm[2] = 0.6059;
+ scalldac = 0.6059;
 endif
 
 New_Step

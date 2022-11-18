@@ -4,7 +4,13 @@
 # Final energy : EDH
 #
 
-Variable xc = "xyg3";
+Variable xc;
+# ixc  functional
+#  0    XYGJ-OS
+#  5    XYG5
+#  6    XYG6
+#  7    XYG7
+Variavle ixc = 0;
 Variable basis = "def2-svp";
 Variable auxbas = "def2-svp/c";
 Variable dlpno = "false";
@@ -18,13 +24,40 @@ Variable Enscf;
 Variable Ept2;
 Variable Edh;
 
-if (xc = "xygjos") then
+if (ixc = 0) then
+ xc = "XYGJ-OS";
  pt2_coeff = 0.4364;
  ss = 0.0;
  acm[0] = 0.7731;
  acm[1] = 0.0 ;
  acm[2] = 0.2754;
  scalldac = 0.5063; 
+Else if (ixc = 5) then
+ xc = "XYG5";
+ pt2_coeff = 1.0;
+ ss = 0.2764;
+ os = 0.4548;
+ acm[0] = 0.9150;
+ acm[1] = 0.0238 ;
+ acm[2] = 0.4957;
+ scalldac = 0.4957; 
+Else if (ixc = 6) then
+ xc = "XYG6";
+ pt2_coeff = 1.0;
+ ss = 0.2426;
+ os = 0.4695;
+ acm[0] = 0.9105;
+ acm[1] = -0.0681 ;
+ acm[2] = 0.2244;
+ scalldac = 0.4044; 
+#Else if (ixc = 7) then
+# pt2_coeff = 1.0;
+# ss = 0.2589;
+# os = 0.4052;
+# acm[0] = 0.8971;
+# acm[1] = -0.1408 ;
+# acm[2] = 0.1159;
+# scalldac = 0.5211; 
 endif
 
 New_Step

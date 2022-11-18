@@ -10,14 +10,16 @@ H -0.820520 -0.473727 -0.253931
 
 %compound "xdh.cmp"
   with
-    xc = "xyg3";
+    ixc = 31;
     basis = "def2-svp";
     auxbas = "def2-svp/c";
     # optional params
     # dlpno = "true";
 end
 
-# EDH: -56.459
+# ixc functional  energy_of_this_example
+#  3    XYG3       -56.45899964
+#  31   revXYG3    -56.45952175
 
 # for xygjos
 #%compound "xdh_scs.cmp"

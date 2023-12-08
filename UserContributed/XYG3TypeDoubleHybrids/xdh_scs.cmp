@@ -9,7 +9,6 @@ Variable xc;
 #  0    XYGJ-OS
 #  5    XYG5
 #  6    XYG6
-#  7    XYG7
 Variavle ixc = 0;
 Variable basis = "def2-svp";
 Variable auxbas = "def2-svp/c";
@@ -50,14 +49,6 @@ Else if (ixc = 6) then
  acm[1] = -0.0681 ;
  acm[2] = 0.2244;
  scalldac = 0.4044; 
-#Else if (ixc = 7) then
-# pt2_coeff = 1.0;
-# ss = 0.2589;
-# os = 0.4052;
-# acm[0] = 0.8971;
-# acm[1] = -0.1408 ;
-# acm[2] = 0.1159;
-# scalldac = 0.5211; 
 endif
 
 New_Step

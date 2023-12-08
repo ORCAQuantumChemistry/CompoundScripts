@@ -24,7 +24,12 @@ end
 # for xygjos
 #%compound "xdh_scs.cmp"
 #  with
-#    xc = "xygjos";
+#    ixc = 0;
 #    basis = "def2-svp";
 #    auxbas = "def2-svp/c";
 #end
+
+# ixc  functional
+#  0    XYGJ-OS
+#  5    XYG5
+#  6    XYG6

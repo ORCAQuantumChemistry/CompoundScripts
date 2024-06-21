@@ -1,4 +1,7 @@
 # Name: DLPNO-CC-Energy
+# *****************************************************************
+# Creator:  Giovanni Bistoni, January 2022, revision ???
+# *****************************************************************
 #
 # *************************************** DESCRIPTION ***********************************************
 # This is a composite scheme for accurate calculation of hydrogen bond interactions.
@@ -20,7 +23,7 @@
 # Step2: Frequency calculations (same level as before) Plus ZPE
 # Step3: Electronic energy using DLPNO-CCSD(T1)/aug-cc-pWCV5Z
 # 
-# From step 1 we get the geometry. Then from Step 2 we get the ZPE correction# Finally on Step 3 we get the electronic energy
+# From step 1 we get the geometry. Then from Step 2 we get the ZPE correction* Finally on Step 3 we get the electronic energy
 #
 # ******************************************   NOTES   ************************************************
 # NOTE 1: Steps 1 and 2 could be combined in 1 but we will keep them separate for easy of customization
@@ -32,32 +35,50 @@
 #
 #
 # Define variables
+# ---------------------------------------------------------
 variable ZPE;      # The ZPE energy
 variable E_Elec;   # The DLPNO Electronic energy
 variable E_Total;  # The Total energy
+
+variable DFT_basis_set      = "def2-QZVPP";
+variable functional         = "B3LYP";
+variable DLPNO_basis_set    = "aug-cc-pwCV5Z";
+variable DLPNO_RI_basis_set = "aug-cc-pwCV5Z/C"; 
 #
-#----------------------------------------------------------
+# ----------------------------------------------------------
 # (Calculation 1)
-# The optimization of the geometry
+# Optimization of the geometry
 New_Step
-! Opt B3LYP D3BJ def2-QZVPP TightSCF 
+! Opt &{functional} D3BJ &{DFT_basis_set} TightSCF 
 STEP_END
 #
-#----------------------------------------------------------
+# ----------------------------------------------------------
 # (Calculation 2)
-# The Frequencies and ZPE
+# Calculation of vibrational frequencies and ZPE
 New_Step
-! Freq B3LYP D3BJ def2-QZVPP TightSCF 
+! Freq &{functional} D3BJ &{DFT_basis_set} TightSCF 
 STEP_END
 read ZPE = THERMO_ZPE[2];    
 #
-#----------------------------------------------------------
+# ----------------------------------------------------------
 # (Calculation 3)
-# The DLPNO calculation of electronic energy
+# Accurate electronic energy using DLPNO-CCSD(T)
 New_Step
-! DLPNO-CCSD(T1) aug-cc-pwCV5Z aug-cc-pwCV5Z/C TightSCF
+! DLPNO-CCSD(T1) &{DLPNO_basis_set} &{DLPNO_RI_basis_set} TightSCF
 STEP_END
 read E_Elec = MDCI_TOTAL_ENERGY[3];   
 #
 E_Total = E_Elec + ZPE;               
+
+#
+# ----------------------------------------------------------
+# Printing of the results
+print( " ****************************************************************");
+print( " ************* COMPOUND PROTOCOL 'DLPNO-CC-ENERGY' **************");
+print( " *** Description:  J. Chem. Phys. 152, 000000 (2020) ************");
+print( " ****************************************************************");
+#print( " The electroninc energy is : %18.8lf ", E_Elec);
+#print( " The Zero point energy is  : %18.8lf ", ZPE);
+#print( " The total energy is       : %18.8lf ", E_Total); 
+
 End

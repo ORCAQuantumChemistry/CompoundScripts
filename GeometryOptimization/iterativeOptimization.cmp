@@ -1,0 +1,85 @@
+# Author: Dimitrios G. Liakos and Franke Neese
+# Date  : May/June of 2024
+#
+# *************************************** DESCRIPTION ***********************************************
+# iterative Optimization protocol to find structure with no negative
+# frequencies (e.g. real minima)
+#
+# Step 1. Run a single point calculation (we need it for the first property file)
+#
+# Step 1. Loop and perform calculations with (optimization and frequencies)
+#
+# Step 2. Check the frequencies. If there are negative ones use the hessian 
+#         of the appropriate normal mode to adjust the geometry
+#
+# ------ Variables to adjust (e.g. using 'with') -------------------
+Variable molecule;
+Variable charge = 0;
+Variable mult   = 2;
+Variable method          = "HF";  #"HF-3c";
+Variable MaxNTries       =  25;   # Number of maximum tries
+Variable CutOff          = -10.0; # CutOff for a negative frequency
+Variable scaling         = 0.6;   # Scaling factor for normal mode
+Variable NNegativeTarget = 0;     # Number of negative frequencies we allow
+Variable myFilename      = "xyzInput.xyz";
+# ------------------------------------------------------------------
+# ------            Rest of variables            -------------------  
+Geometry myGeom;
+Variable freqs, modes;
+Variable res = -1;
+Variable NNegative =   0;
+Variable OptDone;
+
+# -----------------------------------------------------------
+# Perform a single point calculation. We need it for 
+# the initial geometry from the property file
+# -----------------------------------------------------------
+New_Step
+  !&{method}
+  *xyzfile &{charge} &{mult} &{molecule}
+Step_End
+myGeom.Read();
+myGeom.WriteXYZFile(filename=myFilename);
+
+# -----------------------------------------------------------
+# Start a for loop over number of tries
+# ----------------------------------------------------------
+For itry From 1 To maxNTries Do
+  # --------------------------------------------
+  # Perform a geometry optimization/Frequency calculation
+  # --------------------------------------------
+  New_Step
+    ! &{method} freq Opt
+    *xyzfile &{charge} &{mult} &{myFilename}
+  Step_End
+  res = freqs.readProperty(propertyName = "THERMO_FREQS");
+  res = modes.readProperty(propertyName = "HESSIAN_MODES");
+  myGeom.Read();
+
+  # ---------------------------------------------
+  #  check for sufficiently negative frequencies
+  # ---------------------------------------------
+  NNegative = 0;
+  For ifreq From 0 to freqs.GetSize()-1 Do
+    if ( freqs[ifreq] < CutOff )  then
+       myGeom.FollowNormalMode(vibrationSN=ifreq, scalingFactor=scaling);
+       NNegative = NNegative + 1;
+    endif
+  endfor
+  myGeom.WriteXYZFile(filename=myFilename);
+  If ( NNegative <= NNegativeTarget ) then
+    goto OptDone;
+  endif
+endfor
+
+# -----------------------------------------------------------------
+# Either found correct geometry or reached maximum number of tries.
+# -----------------------------------------------------------------
+OptDone :
+if (NNegative > NNegativeTarget) then
+  print("ERROR The program did not find a structure with the desired\n number of imaginary frequencies.\n There are %9.3lf negative frequencies after %3d steps\n", NNegative,itry);
+else
+  print("\nSUCCESS optimized structure with (%d) negative\n frequencies found after %3d stepsi\n", NNegative, itry);
+endif
+
+End

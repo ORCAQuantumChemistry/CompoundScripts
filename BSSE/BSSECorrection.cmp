@@ -1,0 +1,167 @@
+#----------------------------------------------------------
+# Author :Dimitrios G. Liakos
+# Date   :May of 2024
+#
+# This is a script to perform BSSE corrected calculations
+#   once the geometry, with one fragment as ghost atoms, is
+#   provided
+#
+# There are two main options:
+# Option 1: 'DoCorrection'. 
+#           In case this is false only three single point 
+#           calculations are needed:
+#             a. FragmentA (with ghost atoms)
+#             b. FragmentB (with ghost atoms)
+#             c. Total     (whole dimer)
+#          in case we need also the correction then we
+#          perform two more calculations:
+#             d. monomerA (no ghost atoms)
+#             e. monomerB (no ghost atoms)
+#
+# Option 2: 'DoOptimization' 
+#          In case this set to true (default: false) the
+#          geometry of the monomer will be optimized
+#      
+# The script performs the following steps:
+#
+# STEP1: Perform a calculation with the given 
+#        input. This provides the energy 'enFragmentA'.
+# 
+# STEP2: Read the geometry of step1 to create the rest of 
+#        neccesary xyz files. For this we use the command
+#        'CreateBSSE'.
+#
+# STEP3: Perform the rest of the calculations (depending
+#        on the options) and read the corresponding energies.
+#
+# STEP4. Print the final results.
+# 
+# NOTE 1: The xyz files that 'createBSSE' command creates
+#         contain the geometries in BOHRS!
+#
+# NOTE 2: If the method is changed make sure you also adjust
+#         the name of the property you read from property file
+#         (default: SCF_Energy")
+#
+# NOTE 3: Charge and multiplicity should also be adjusted 
+#         default (0 and 1)
+#
+# NOTE 4: The initial structure (default 01.xyz) should containt at least one
+#         Ghost atom (':' after the symbol of the element)
+# ---------------------------------------------------------
+#
+# ----------  Variables to change (e.g. through 'with') ------------------------------------#
+Variable molecule       = "01.xyz";
+Variable method         = "BP86";
+Variable basis          = " ";
+Variable restOfInput    = "";
+Variable charge         = 0;
+Variable mult           = 1;
+Variable myPropName     = "SCF_Energy";
+variable myFilename     = "compoundBSSE";
+Variable DoCorrection   = true;
+Variable DoOptimization = true;
+#
+# -----------------------      Rest of the variables       ---------------------------------
+Geometry monomerA;
+Variable enFragA, enFragB, enTotal;
+Variable DE, DENoGhost, DECorrection;
+Variable enMonomerA = 0.0;
+Variable enMonomerB = 0.0;
+Variable res = -1;
+Variable optimization;
+Variable HartreeToKcal = 627.5096080305927;
+
+
+if (DoOptimization ) then 
+  optimization = "opt";
+else
+  optimization = " ";
+endif
+
+# --------------------------------------
+# Calculation for Fragment A
+# --------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput}
+  *xyzfile &{charge} &{mult} &{Molecule}
+Step_End
+res = enFragA.readProperty(propertyName = myPropName);
+
+# -------------------------------------
+# Read the geometry of monomer A
+# -------------------------------------
+monomerA.Read();
+
+# -------------------------------------
+# Create the missing xyz files
+# -------------------------------------
+monomerA.CreateBSSE(filename=myFilename);
+
+# -------------------------------------
+# If we need the correction do MonomerA
+# -------------------------------------
+if (DoCorrection) then
+  New_Step
+    !&{method} &{basis}  &{restOfInput} &{optimization} Bohrs
+    *xyzFile &{charge} &{mult} &{myFilename}_MonomerA.xyz 
+  Step_End
+  res = enMonomerA.readProperty(propertyName = myPropName);
+endIf
+
+# -------------------------------------
+# Calculation of Frament B
+# -------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput} Bohrs
+  *xyzFile &{charge} &{mult} &{myFilename}_FragmentB.xyz
+Step_End
+res = enFragB.readProperty(propertyName = myPropName);
+
+# -------------------------------------
+# If we need the correction do MonomerB
+# -------------------------------------
+if (DoCorrection) then
+  New_Step
+    !&{method} &{basis} &{restOfInput} &{optimization} Bohrs
+    *xyzFile &{charge} &{mult} &{myFilename}_MonomerB.xyz 
+  Step_End
+  res = enMonomerB.readProperty(propertyName = myPropName);
+endIf
+
+# -------------------------------------
+# Calculation of Dimer
+# -------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput} Bohrs
+  *xyzFile &{charge} &{mult} &{myFilename}_Total.xyz
+Step_End
+res = enTotal.readProperty(propertyName = myPropName);
+
+DE = enTotal - enFragA - enFragB;
+# -------------------------------------
+# Do some printing
+# -------------------------------------
+print("\n\n");
+print(" ------------------------------------\n");
+print("  Compound BSSE Corrected results\n");
+print(" ------------------------------------\n");
+print("Method         : %s\n",method);
+print("DoCorrection   : %s\n",DoCorrection.GetString());
+print("DoOptimization : %s\n",DoOptimization.GetString());                  
+print("Energy of Fragment A (with ghost basis set) : %.8lf\n", enFragA);
+if (DoCorrection) then
+  print("Energy of Monomer A  (no ghost basis set)   : %.8lf\n", enMonomerA);
+endif
+print("Energy of Fragment B (with ghost basis set) : %.8lf\n", enFragB);
+if (DoCorrection) then
+  print("Energy of Monomer B  (no ghost basis set)   : %.8lf\n", enMonomerB);
+endif
+print("Energy of Dimer                             : %.8lf\n", enTotal);
+print("DeltaE (with ghost basis sets)              : %.8lf (%.5lf kcal/mol)\n", DE, DE*HartreeToKcal);
+if (DoCorrection) then
+  DENoGhost = enTotal - enMonomerA - enMonomerB;
+  print( "DeltaE (no ghost basis sets)                : %.8lf (%.5lf kcal/mol)\n", DENoGhost, DENoGhost*HartreeToKcal);
+  print( "DeltaECorrection                            : %.8lf (%.5lf kcal/mol)\n", DE-DENoGhost, (DE-DENoGhost)*HartreeToKcal);
+EndIf
+End

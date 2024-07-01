@@ -1,0 +1,264 @@
+#----------------------------------------------------------
+# Author :Dimitrios G. Liakos and Frank Neese
+# Date   :May of 2024
+#
+# This is a script to calculate the BSSE corrected gradient
+#   once the geometry, with one fragment as ghost atoms, is
+#   provided
+#
+# The script permits optimization of the monomers through
+#   the use of 'DoOptimization'
+#      
+# The script performs the following steps:
+#
+# STEP1: Perform a calculation with the given 
+#        input. This provides the energy and gradient for 
+#        FragmentA'.
+# 
+# STEP2: Read the geometry of step1 and create the rest of 
+#        neccesary xyz files. For this we use the command
+#        'CreateBSSE'.
+#
+# STEP3: Perform the rest of the calculations (depending
+#        on the options) and read the corresponding gradients.
+#
+# STEP4. Print the final results.
+# 
+# NOTE 1: The xyz files that 'createBSSE' command creates
+#         contain the geometries in BOHRS!
+#
+# ---------------------------------------------------------
+# ----------------------    Variables    -------------------------------
+# --- Variables to be adjusted (e.g. using 'with' ----------------------
+Variable molecule           = "01.xyz";        # xyz file of the initial structure
+Variable method             = "BP86";          # Method
+Variable basis              = " ";             # Basis set
+Variable restOfInput        = "";              # The rest of the simple input
+Variable charge             = 0;               # Charge
+Variable mult               = 1;               # Spin multiplicity
+Variable myPropName         = "SCF_Energy";    # The name of the property for the SCFenergy
+variable myFilename         = "compoundBSSE";  # Name used for the created xyz files
+Variable DoOptimization     = false;           # Optimize the monomers
+Variable produceEnGradFile  = true;            # Produce an ORCA engrad file   
+Variable enGradFilename     = "result.engrad"; # Filename of the ORCA engrad file
+Variable removeFiles        = true;            # Remove *_Compound_*, *bas* files
+# ---------------------------------------------------------------------
+# -------------- Rest of the variables --------------------------------
+Geometry fragA, monomerA, monomerB, myGeom;           #Geometry objects 
+Variable gradFragA, gradFragB, gradTotal;      #Gradients for FragmentA, FragmentB and Total  
+Variable gradMonomerA, gradMonomerB;           #Gradients for MonomerA and MonomerB
+Variable fragACorrection, fragBCorrection;     #Correction to gradients of Fragments A and B
+Variable gradCorrected, gradCorrection;        #Total corrected gradient and correction to gradient
+Variable enFragA, enMonA, enFragB, enMonB, enTotal; #The energies 
+Variable res = -1;
+Variable optimization, enGrad;
+Variable NAtoms = 0;
+Variable ghostA = -1;
+Variable ghostB = -1;
+Variable tempX = 0.0, tempY=0.0, tempZ=0.0;
+Variable ghosts;
+Variable energy = 0.0;
+Variable EnGradFile, Cartesians, atomicNumbers;
+# ---------------------------------------
+
+
+# -----------------------------------------------------------
+# Adjust ORCA input based on optimization or not of monomers
+# -----------------------------------------------------------
+if (DoOptimization ) then 
+  optimization = "opt";
+  enGrad       = " ";
+else
+  optimization = " ";
+  enGrad       = " EnGrad ";
+endif
+
+# ------------------------------------------------------------
+# Calculation for Fragment A
+# ------------------------------------------------------------
+New_Step
+  !&{method} &{basis}  &{restOfInput} EnGrad
+  *xyzfile &{charge} &{mult} &{molecule} 
+Step_End
+res = enFragA.readProperty(propertyName = myPropName);
+res = gradFragA.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+# -------------------------------------
+# Read the geometry of Fragment A
+# -------------------------------------
+fragA.Read();
+
+# -------------------------------------
+# Create the missing xyz files
+# -------------------------------------
+fragA.CreateBSSE(filename=myFilename);
+
+# -------------------------------------
+# MonomerA
+# -------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput} &{optimization} &{EnGrad} Bohrs
+  *xyzFile &{charge} &{mult} &{myFilename}_MonomerA.xyz 
+Step_End
+monomerA.Read();
+res = enMonA.readProperty(propertyName = myPropName);
+res = gradMonomerA.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+
+# -------------------------------------
+# Calculation of Frament B
+# -------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput} Engrad Bohrs
+  *xyzFile &{charge} &{mult} &{myFilename}_FragmentB.xyz
+Step_End
+res = enFragB.readProperty(propertyName = myPropName);
+res = gradFragB.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+
+# -------------------------------------
+# Calculation of MonomerB
+# -------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput} &{optimization} &{EnGrad} Bohrs
+  *xyzFile &{charge} &{mult} &{myFilename}_MonomerB.xyz 
+Step_End
+monomerB.Read();
+res = enMonB.readProperty(propertyName = myPropName);
+res = gradMonomerB.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+
+# -------------------------------------
+# Calculation of Dimer
+# -------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput} EnGrad Bohrs
+  *xyzFile &{charge} &{mult} &{myFilename}_Total.xyz
+Step_End
+res = enTotal.readProperty(propertyName = myPropName);
+res = gradTotal.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+myGeom.Read();
+
+# -------------------------------------------------
+# Evaluate the corrections to Fragments A and B
+# -------------------------------------------------
+fragACorrection = mat_p_mat(1, gradFragA, 0, gradTotal);
+fragBCorrection = mat_p_mat(1, gradFragB, 0, gradTotal);
+
+ghosts = fragA.GetGhostAtoms();
+NAtoms = fragA.GetNumOfAtoms();
+for atom from 0 to NAtoms-1 Do
+  if (ghosts[atom] > 0) then   #Ghost for fragment A
+    ghostA = ghostA + 1;
+    tempX = fragACorrection[3*atom];
+    tempY = fragACorrection[3*atom+1];
+    tempZ = fragACorrection[3*atom+2];
+    fragACorrection[3*atom]   = tempX - gradMonomerA[3*ghostA];
+    fragACorrection[3*atom+1] = tempY - gradMonomerA[3*ghostA+1];
+    fragACorrection[3*atom+2] = tempZ - gradMonomerA[3*ghostA+2];
+  else                         #Ghost for fragment B
+    ghostB = ghostB + 1;
+    tempX = fragBCorrection[3*atom];
+    tempY = fragBCorrection[3*atom+1];
+    tempZ = fragBCorrection[3*atom+2];
+    fragBCorrection[3*atom]   = tempX - gradMonomerB[3*ghostB];
+    fragBCorrection[3*atom+1] = tempY - gradMonomerB[3*ghostB+1];
+    fragBCorrection[3*atom+2] = tempZ - gradMonomerB[3*ghostB+2];
+  endIf
+EndFor
+
+gradCorrected = mat_p_mat( 1, gradTotal,      0, fragACorrection);
+gradCorrected = mat_p_mat( 1, gradCorrected, -1, fragACorrection);
+gradCorrected = mat_p_mat( 1, gradCorrected, -1, fragBCorrection);
+gradCorrection = mat_p_mat( 1, gradTotal,     -1, gradCorrected);
+energy = enTotal - (enFragA-enMonA) - (enFragB-enMonB);
+# -------------------------------------
+# Do some printing
+# -------------------------------------
+print("\n\n");
+print("----------------------------------------------\n");
+print("  Compound BSSE Corrected Gradient results\n");
+print("----------------------------------------------\n");
+print("DoOptimization : %s\n",DoOptimization.GetString());                  
+print("Molecule       : %s\n", molecule);
+print("Charge         : %d\n", charge);
+print("Multiplicity   : %d\n", mult);
+print("Method         : %s\n", method);
+print("Rest of input  : %s\n", restOfInput);
+print("Energy         : %20.12lf\n", energy);
+print( "--------------------------------------------\n");
+print("Gradient of Fragment A (with Ghost atoms):\n");
+print( "--------------------------------------------\n");
+for iAtom from 0 to NAtoms-1 do
+  print("%18.10lf  %18.10lf  %18.10lf\n", gradFragA[3*iAtom], gradFragA[3*iAtom+1], gradFragA[3*iAtom+2]);
+endFor
+print( "--------------------------------------------\n");
+print("Gradient of Monomer A (No Ghost atoms):\n");
+print( "--------------------------------------------\n");
+for iAtom from 0 to monomerA.GetNumOfAtoms()-1 do
+  print("%18.10lf  %18.10lf  %18.10lf\n", gradMonomerA[3*iAtom], gradMonomerA[3*iAtom+1], gradMonomerA[3*iAtom+2]);
+endFor
+print( "--------------------------------------------\n");
+print("Gradient of Fragment B (with Ghost atoms):\n");
+print( "--------------------------------------------\n");
+for iAtom from 0 to NAtoms-1 do
+  print("%18.10lf  %18.10lf  %18.10lf\n", gradFragB[3*iAtom], gradFragB[3*iAtom+1], gradFragB[3*iAtom+2]);
+endFor
+print( "--------------------------------------------\n");
+print("Gradient of Monomer B (No Ghost atoms):\n");
+print( "--------------------------------------------\n");
+for iAtom from 0 to monomerB.GetNumOfAtoms()-1 do
+  print("%18.10lf  %18.10lf  %18.10lf\n", gradMonomerB[3*iAtom], gradMonomerB[3*iAtom+1], gradMonomerB[3*iAtom+2]);
+endFor
+print( "--------------------------------------------\n");
+print("Total Gradient (before correction):\n");
+print( "--------------------------------------------\n");
+for iAtom from 0 to NAtoms-1 do
+  print("%18.10lf  %18.10lf  %18.10lf\n", gradTotal[3*iAtom], gradTotal[3*iAtom+1], gradTotal[3*iAtom+2]);
+endFor
+print( "--------------------------------------------\n");
+print("BSSE Corrected total Gradient:\n");
+print( "--------------------------------------------\n");
+for iAtom from 0 to NAtoms-1 do
+  print("%18.10lf  %18.10lf  %18.10lf\n", gradCorrected[3*iAtom], gradCorrected[3*iAtom+1], gradCorrected[3*iAtom+2]);
+endFor
+print( "--------------------------------------------\n");
+print("Gradient BSSE Correction:\n");
+print( "--------------------------------------------\n");
+for iAtom from 0 to NAtoms-1 do
+  print("%18.10lf  %18.10lf  %18.10lf\n", gradCorrection[3*iAtom], gradCorrection[3*iAtom+1], gradCorrection[3*iAtom+2]);
+endFor
+
+
+if (produceEnGradFile) then
+  # ------------------------------------------
+  # Read the geometry of the last calculation
+  # ------------------------------------------
+  myGeom.Read();
+  NAtoms = myGeom.GetNumOfAtoms();
+  Cartesians = myGeom.GetCartesians();
+  atomicNumbers = myGeom.GetAtomicNumbers();
+  EnGradFile = openFile(enGradFilename, "w");
+  Write2File(EnGradFile, "\n\n\n");
+  Write2File(EnGradFile, " %d\n", nAtoms);     
+  Write2File(EnGradFile, "\n\n\n");
+  Write2File(EnGradFile, " %.12lf\n", energy);
+  Write2File(EnGradFile, "\n\n\n");
+  for i from 0 to 3*NAtoms-1 Do
+    Write2File(EnGradFile, "     %20.12lf\n", gradCorrected[i]);
+  EndFor 
+  Write2File(EnGradFile, "\n\n\n");
+  for i from 0 to nAtoms-1 Do
+    if (ghosts[i] < 0) then   
+      Write2File(EnGradFile, "%5d:  %12.8lf  %12.8lf   %12.8lf\n", atomicNumbers[i], cartesians[i][0], cartesians[i][1], cartesians[i][2]);
+    else
+       Write2File(EnGradFile, "%5d  %12.8lf  %12.8lf   %12.8lf\n", atomicNumbers[i], cartesians[i][0], cartesians[i][1], cartesians[i][2]);
+    EndIf
+  EndFor 
+  closeFile(EnGradFile); 
+EndIf
+
+# ---------------------------------------------------
+#  Maybe remove unneccesary files
+# ---------------------------------------------------
+if (removeFiles) then
+  sys_cmd("rm *_Compound_* *.bas*");
+EndIf
+
+End

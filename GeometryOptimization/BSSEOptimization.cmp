@@ -1,0 +1,122 @@
+# Author:  Frank Neese and Dimitrios G. Liakos
+# Date  :  May of 2024 
+# ---------------------------------------------------
+#
+# This is a script that will use a compound script to 
+#   calculate BSSE corrected gradients and use them
+#   in combination with ORCA External Optimizer to
+#   perform a geometry optimization. 
+#
+# We perform the following steps.
+# 1. Choose a compound script that calculates the BSSE
+#    corrected gradient.
+#    We achieve this with the compoundFilename
+#
+# 2. Create a script to run an ORCA calculalation with
+#    the external optimizer and the BSSE cprrected 
+#    gradient. We do that by running a script that runs
+#    an ORCA calculation that calculates the gradient
+#    and then copy this gradient file back to the expected
+#    name
+#
+# 3. Make a normal ORCA New_Step that calls the external
+#    optimizer
+#
+# NOTE: Depending on the chosen method the property names of 
+#       myPropName has to be adjusted. For the gradient we do 
+#       not have this problem because we read the last 
+#       available in the corresponding property file.
+#
+# NOTE: Variable baseFilename should have the name of the calling
+#       orca input file!
+#
+# ----------------------    Variables    -------------------------------
+# --- Variables to be adjusted (e.g. using 'with' ----------------------
+Variable molecule           = "01.xyz";         # xyz file of the initial structure
+Variable method             = "BP86";            # The method we use for the calculation
+Variable basis              = " ";               # The basis set
+Variable restOfInput        = "";                # The rest of the simple input
+Variable charge             = 0;                 # Charge
+Variable mult               = 1;                 # Spin multiplicity
+Variable myPropName         = "SCF_Energy";      # The name of the property for the energy
+variable myFilename         = "compoundBSSE";    # Name for the created xyz files
+Variable baseFilename       = "run";
+Variable gradCreateFile     = "BSSEGradient.cmp";# The compound script that extrapolates the gradient  
+Variable DoOptimization     = false;             # Optimize the monomers or not
+Variable produceEnGradFile  = true;              # Produce an ORCA engrad file   
+Variable enGradFilename     = "result.engrad";   # Filename of the ORCA engrad file
+# -------------------------------------------------------
+#
+#           Variables for the driver script
+Variable createDriverScript = true;            # The shell script driver
+Variable driverScript;                         # A script to create the extrapolated energy gradient
+Variable driverScriptName   = "runningScript";
+Variable submitCommand      = "orca";
+# --------------------------------------------------------
+
+# --------------------------------------------------------
+#
+#           Variables for the ORCA input
+Variable createORCAInput = true;
+Variable orcaInput;                           # The ORCA input for the gradient extrapolation
+Variable orcaInputName  = "runGradient.inp";
+# --------------------------------------------------------
+
+# ------------------------------------------------
+# 1. Maybe Create the necessary driver script  
+#    for the external optimizer and make it executable
+#    NOTE: This will depenend on the operating system
+# -------------------------------------------------
+if (createDriverScript) then
+  driverScript = openFile(driverScriptName, "w");
+  write2File(driverScript, "source ~/.bashrc\n");
+  write2File(driverScript, "%s %s\n", submitCommand, orcaInputName );
+  write2File(driverScript, "cp %s  %s_Compound_1_EXT.engrad\n", engradFilename, baseFilename);
+  closeFile(driverScript);
+  sys_cmd("chmod +x %s",driverScriptName);
+EndIf
+
+# ------------------------------------------------
+# 2. Maybe Create the ORCA input that will run the 
+#    compound script for the gradient extrapolation  
+# -------------------------------------------------
+if (createORCAInput) then
+  orcaInput = openFile(orcaInputName, "w");
+  Write2File(orcaInput, "%%Compound \"%s\"\n", gradCreateFile);
+  Write2File(orcaInput, "  with\n");
+  Write2File(orcaInput, "    molecule          =\"%s_Compound_1_EXT.xyz\"\;\n", baseFilename);
+  Write2File(orcaInput, "    charge            = %d\;\n",     charge);
+  Write2File(orcaInput, "    mutliplicity      = %d\;\n",     mult);
+  Write2File(orcaInput, "    method            = \"%s\"\;\n", method);
+  Write2File(orcaInput, "    basis             = \"%s\"\;\n", basis);
+  Write2File(orcaInput, "    restOfInput       = \"%s\"\;\n", restOfInput);
+  Write2File(orcaInput, "    myPropName        = \"%s\"\;\n", myPropName);
+  Write2File(orcaInput, "    myFilename        = \"%s\"\;\n", myFilename);
+  Write2File(orcaInput, "    removeFiles       = false\;\n");
+  Write2File(orcaInput, "    DoOptimization    = %s\;\n",     DoOptimization.GetString());
+  Write2File(orcaInput, "    produceEnGradFile = %s\;\n",     produceEnGradFile.GetString());
+  Write2File(orcaInput, "    enGradFilename    = \"%s\"\;\n", enGradFilename); 
+  Write2File(orcaInput, "End\n");
+  closeFile(orcaInput);
+EndIf
+
+# ------------------------------------------------
+# 3. Copy the initial XYZ file to the one needed
+#    for the external optimizer 
+# -------------------------------------------------
+sys_cmd("cp %s %s_Compound_1_EXT.xyz", molecule, baseFilename);
+
+
+# --------------------------------------------------
+# 1. Run the driver ORCA input file that calls the
+#    External optimizer
+# --------------------------------------------------
+New_Step
+  !ExtOpt Opt 
+  *xyzfile &{charge} &{mult} &{baseFilename}_Compound_1_EXT.xyz
+  %method
+    ProgExt "./&{driverScriptName}"
+  End
+Step_End
+
+End

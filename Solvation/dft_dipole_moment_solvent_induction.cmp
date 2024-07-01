@@ -1,8 +1,10 @@
-# Name: solvation_energies
+# Creator: Miquel Garcia-Rates
+# Update : Dimitrios G. Liakos (June of 2024)
 #
 # The protocole calculates how the dipole moment changes when solvating a solute.
 # for this it calculates the ratio of the dipole moment in vacuum to the dipole 
-# moment in a solvent#
+# moment in a solvent
+#
 # For a reference to the methodology please refer to:
 #
 # Miquel Garcia-Rates Frank Neese, J Comput. Chem. 2020;41:922-939
@@ -34,29 +36,63 @@
 #         it is easy to know the name for the second one. This could of course change but it should
 #         be consistent for both calculations
 #
-# First define some variables:
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+variable molecule;
+variable charge        = 0;
+variable mult          = 1;
+Variable method        = "RKS B3LYP RIJCOSX D3BJ";
+Variable basis         = "def2-TZVP def2/J";
+Variable restOfInput   = "VeryTightSCF VeryTightOpt";
+Variable mySolvent     = "water";
+# -----------------  Rest of variables --------------------------
 Variable d_vac, d_solv;      # Dipole moments in vacuum and solvent
 Variable ratio;              # ratio of dipole moments
-#
+
+# ----------------------------------------------------------------
 # Optimization in vacuum
-# (Calculation 1)
+# ----------------------------------------------------------------
 New_Step
-  !RKS B3LYP RIJCOSX def2-TZVP def2/J D3BJ verytightscf verytightopt
+  ! &{method} &{basis} &{restOfInput} 
+  *xyzfile &{charge} &{mult} &{molecule} 
   %base "vacuumGeometry" 
 Step_End
-Read d_vac = SCF_DIPOLE_MAGNITUDE_DEBYE[1];   
+d_vac.readProperty(propertyName="SCF_DIPOLE_MAGNITUDE_DEBYE");   
 #
+
+# ----------------------------------------------------------------
 # Second step: Optimization in solvent
-# (Calculation 2)
+# ----------------------------------------------------------------
 New_Step
-  !RKS B3LYP RIJCOSX def2-TZVP def2/J D3BJ  verytightscf verytightopt CPCM(water)
-  * xyzfile 0 1 vacuumGeometry.xyz
+  !&{method} &{basis} &{restOfInput} CPCM(&{mySolvent})
+  * xyzfile &{charge} &{mult} vacuumGeometry.xyz
   %cpcm
     surfacetype vdw_gaussian
   End
 STEP_END
-Read d_solv = SCF_DIPOLE_MAGNITUDE_DEBYE[2];   
+d_solv.readProperty(propertyName="SCF_DIPOLE_MAGNITUDE_DEBYE");   
+
 #
+# ----------------------------------------------------------------
 # Now evaluate the ratio
+# ----------------------------------------------------------------
 ratio  = d_solv/d_vac;            
-End
+
+# ----------------------------------------------------------------
+# Print the results
+# ----------------------------------------------------------------
+print("\n\n============================================================\n");
+print("==================== SUMMARY OF RESULTS ====================\n");
+print("============================================================\n\n");
+print(" Molecule                : %s\n", molecule);
+print(" Charge                  : %-18d\n", charge);
+print(" Mult                    : %-18d\n", mult);
+print(" Method                  : %s\n", method);
+print(" Basis set               : %s\n", basis);
+print(" Rest of input           : %s\n", restOfInput);
+print(" Solvent                 : %s\n", mySolvent);
+print(" Dipole moment in vacuum : %-18.6lf\n", d_vac);
+print(" Dipole moment in solvent: %-18.6lf\n", d_solv);
+print(" Ratio                   : %-10.5lf\n", ratio);
+
+EndRun

@@ -1,0 +1,124 @@
+# Creator: Ahmet Altun
+#
+# *************************************** DESCRIPTION ********************************************************
+# This script is for automating two point "Complete PNO Space (CPS)" extrapolation [1] of 
+# DLPNO-CCSD(T)/TightPNO energies. 
+# 
+# The CPS extrapolation is applied on correlation energies from two separate calculations performed 
+# exactly the same settings except TCutPNO values, set to A*10^-X and A*10^-Y, where A is a common
+# prefactor in both TCutPNO values, and Y = X + 1. The two-point CPS(X/Y) extrapolation formula 
+# on top of the corresponding correlation energies is then as follows: 
+#
+#                      E(CPS) =E(X)+F*(E(Y)-E(X))
+# 
+# where E(X) and E(Y) are the correlation energies obtaind with the loose and tight TCutPNO thresholds, 
+# respectively (e.g., TCutPNO = 3e-6 and TCutPNO= 3e-7, respectively). E(CPS) is the CPS(X/Y)-extrapolated
+# correlation energy. 
+#
+# Optimal value of F was found as 1.5 on a wide range of diverse interactions in the GMTKN55 superset [1], 
+# and thus it should NOT be changed.
+
+# With the combination of 1e-5/1e-6, i.e., with CPS(5/6), the paper reports MAE between 0.2 and 0.3 kcal/mol 
+# for relative energies on a variety of datasets of GMTKN55 superset.
+# 
+# The combination 1e-6/1e-7, i.e., CPS(6/7), provides MAEs between 0.08 to 0.27 kcal/mol for the same set of 
+# molecules.
+#
+# The CPS scheme eliminates largely the system size depenence of the correlation energies, and thus provides
+# accurate results also for very large molecular systems [2].
+#
+# *************************************** LITERATURE  *********************************************************
+#
+# [1] A. Altun, F. Neese, G. Bistoni, JCTC 2020, 16, 10, 6142–6149
+# [2] A. Altun, S. Ghoush, C. Riplinger F. Neese, G. Bistoni, JPC A 2021, 125, 9932–9939
+#
+# ***************************************   DETAILS   *********************************************************
+#
+# In Step 1, a calculation with a loose TCutPNO value is performed.
+# In Step 2, a calculation with a tight TCutPNO value is performed.
+# 
+# Then, the results from Steps 1 and 2 are used to get the extrapolated correlation energy.
+# Finally, a summary table of unextrapolated and extrapolated energies are printed out in the output file.
+#
+# ******************************************   NOTES   *******************************************************
+# 
+# NOTE 1: One can use different TCutPNO values and basis set than those used in this script.
+# NOTE 2: The exponents of TCutPNO values must be consecutive (e.g. 6/7, 7/8, etc.). 
+#         Here we use 6 and 7.
+# NOTE 3: Here we use the cc-pVTZ and the corresponding "/C" bases.
+# NOTE 4: To use autoaux module instead of the "/C" basis specified in the simple input line, take the lines
+# 	  involving the BASIS block out of the comment for both Calculations 1 and 2.
+# NOTE 5: Do not change the F value.
+#
+# ******************************************  METHOD   *******************************************************
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+variable molecule;
+variable charge        = 0;
+variable mult          = 1;
+variable method        = "DLPNO-CCSD(T1)";
+variable basis         = "cc-pVTZ";
+variable restOfInput   = "TightPNO cc-pVQZ/C VeryTightSCF";
+variable loose_TCutPNO = "1e-6";                   # Loose TCutPNO value
+variable tight_TCutPNO = "1e-7";                   # Tight TCutPNO value
+variable F             = 1.5;                      # The mulitplier
+# -----------------  Rest of variables --------------------------
+variable E_HF;                                     # The SCF energy
+variable ECORR_X, ECORR_Y, ECORR_CPS;              # The correlation energies
+variable ETOT_X, ETOT_Y, ETOT_CPS;                 # The total energies
+#
+#
+#--------------------------------------------------------------------------------------------------------------
+# (Calculation 1)
+# The calculation with the loose TCutPNO
+#--------------------------------------------------------------------------------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput}
+  *xyzfile &{charge} &{mult} &{molecule}
+  %MDCI
+    TCutPNO &{loose_TCutPNO} 
+  End
+  # % BASIS auxc "autoaux" autoauxlmax true END
+Step_End
+E_HF.ReadProperty(propertyName="MDCI_REF_ENERGY");   
+ECORR_X.ReadProperty(propertyName="MDCI_CORR_ENERGY");  
+ETOT_X = E_HF + ECORR_X;
+
+#---------------------------------------------------------------------------------------------------------------
+# (Calculation 2)
+# The calculation with the tight TCutPNO
+#--------------------------------------------------------------------------------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput}
+  %MDCI
+    TCutPNO &{tight_TCutPNO} 
+  End
+  # % BASIS auxc "autoaux" autoauxlmax true END
+Step_End
+ECORR_Y.readProperty(propertyName="MDCI_CORR_ENERGY");    
+ETOT_Y = E_HF + ECORR_Y;
+
+#---------------------------------------------------------------------------------------------------------------
+ECORR_CPS = ECORR_X + 1.5*(ECORR_Y - ECORR_X);
+ETOT_CPS = E_HF + ECORR_CPS;        
+#
+print("\n\n================================================================================\n");
+print("=========================== SUMMARY OF ENERGIES (Eh) ===========================\n");
+print("================================================================================\n\n");
+print(" Molecule         : %s\n", molecule);
+print(" Charge           : %-18d\n", charge);
+print(" Mult             : %-18d\n", mult);
+print(" Method           : %s\n", method);
+print(" Basis set        : %s\n", basis);
+print(" Rest of input    : %s\n", restOfInput);
+print(" SCF Energy       : %-22.8lf\n", E_HF);
+print(" \n");
+print("                      Loose TCutPNO         Tight TCutPNO              CPS\n");
+print("                      -------------         -------------         -------------\n");
+print("Correlation Energy %14.8lf %21.8lf %21.8lf \n", ECORR_X, ECORR_Y, ECORR_CPS);
+print("Total Energy %20.8lf %21.8lf %21.8lf \n", ETOT_X, ETOT_Y, ETOT_CPS);
+#
+End
+#

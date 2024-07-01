@@ -1,0 +1,165 @@
+# Author: Dimitrios Liakos
+# Date  : May of 2024
+#
+#
+#   This protocol estimates the complete basis limit (CBS) extrapolated electronic energy.
+# It extrapolates separately the SCF part and the correlation part. 
+# For the correlation part by default the script uses single reference methods 
+# (e.g. DLPNO-CCSD, CCSD(T), CEPA ...etc.). 
+#
+#
+# A description of the notation we use here             : J. Phys. Chem. A 2012, 116, 19, 4801-4816
+# The exponents used for the extrapolations             : J. Chem. Theory Comput., 7, 33-43 (2011) 
+# Original formulation of the SCF extrapolation         : J. Chem. Phys. 2008, 129, 184116
+# Original formulation of the correlation extrapolation : J. Chem. Phys. 1997, 106, 9639
+#
+#
+#
+#  In the current implementation we perform the following steps:
+#
+# Step 1. Use cardinal numbers to evaluate intermeidate quatities eX and eY
+#
+# Step 2. Perform a calculation with basis set X (default: cc-pVDZ).
+#         Read SCF_X and corr_X
+#
+# Step 3. Perform a calculation with basis set Y (default: cc-pVTZ).
+#         Read SCF_Y and corr_Y
+#
+# Step 4. Extrapolate SCF energy
+#
+#              CBS_SCF = (SCF_X*eY - SCF_Y*eX)/(eY-eX)
+#
+#         Extrapolate correlation energy
+#
+#              CBS_corr = (X^beta*corr_X - Y^beta*corr_Y)/(X^beta-Y^beta)
+#
+#         Sum up to get totall extrapolated energy
+#
+#              CBS_Total = CBS_SCF + CBS_corr
+#
+# Step 5. Print the results
+#
+#
+# NOTE 1. For SCF we use the function:
+#  
+#                   SCF(X) = SCF(CBS)+Aexp(-a*SQRT(X))
+#
+# NOTE 2. For correlation we use the equation:
+#   
+#             CBS(Corr)=(X^b*E_Corr(X))-Y^b*E_Corr(Y))/(X^b-Y^b):
+#
+# 
+# NOTE 3: If the basis sets change, please make sure to adjust the  'alpha', 'beta' and 'cardinalValues'  
+#         accordingly.
+#
+# NOTE 4: The values of the variables can also be adjusted using the 'with' command in the ORCA input.
+#         In this case if one want to experiment just with the exponents the values to be adjusted are:
+#            alpha
+#            beta
+#         In case the same method is used but different basis sets, then the the values to adjust are:
+#            basisSets
+#            cardinalNumbers
+#            alpha
+#            beta 
+#         In case the method is changed then potentially also the reading properties should change
+#            method
+#            RefEnergy_prop
+#            CorrEnergy_prop
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge           = 0;
+Variable mult             = 1;
+Variable method           = "CCSD(T) VeryTightSCF";
+Variable RefEnergy_prop   = "MDCI_Ref_Energy";
+Variable CorrEnergy_prop  = "MDCI_Corr_Energy";
+Variable basisSets        = {"cc-pVDZ", "cc-pVTZ"};
+Variable cardinalNumbers  = {2,3};
+Variable alpha            = 4.420; #based on F. Neese et al. JCTC, 7,33-43 (2011)
+Variable beta             = 2.460;
+# -----------------  Rest of variables --------------------------
+Variable  X, Y;                #The cardinal numbers
+Variable  SCF_X, SCF_Y;        #The SCF energies
+Variable  eX, eY;              #Useful temporary intermediates
+Variable  corr_X, corr_Y;      #The correlation energies
+Variable  CBS_SCF, CBS_corr;   #The extrapolated components
+Variable  CBS_Total;           #The extrapolated total energy
+Variable  res = -1;
+
+
+# -------------------------------------------------
+# Use X and Y cardinal numbers to evaluate 
+#   intermediate eX and eY values
+# -------------------------------------------------
+X  = cardinalNumbers[0];
+Y  = cardinalNumbers[1];
+eX = exp(-alpha*sqrt(X));
+eY = exp(-alpha*sqrt(Y));
+
+# -------------------------------------------------
+# Calculation with small basis set
+# -------------------------------------------------
+New_Step
+  !&{method} &{basisSets[0]} 
+  *xyzfile &{charge} &{mult} &{molecule}
+Step_End
+SCF_X.readproperty(propertyname=RefEnergy_prop);   
+corr_X.readproperty(propertyname=CorrEnergy_prop);  
+
+# -------------------------------------------------
+# Calculation with big basis set
+# -------------------------------------------------
+New_Step
+  !&{method} &{basisSets[1]}
+Step_End
+res = SCF_Y.readproperty(propertyname=RefEnergy_prop);    
+res = corr_Y.readproperty(propertyname=CorrEnergy_prop);  
+
+# -------------------------------------------------
+# Evaluate the extrapolate quatities
+# -------------------------------------------------
+#          Extrapolate the SCF energy
+CBS_SCF = (SCF_X*eY - SCF_Y*eX)/(eY-eX);    
+
+#       Extrapolate the correlation energy
+CBS_corr = (X^beta*corr_X - Y^beta*corr_Y)/(X^beta-Y^beta);  
+
+#                   Sum up
+CBS_Total = CBS_SCF + CBS_corr;          
+
+# -------------------------------------------------
+# Print the results
+# -------------------------------------------------
+print("\n\n------------------------------------------------------------------------------------\n");
+print("------------------------------------------------------------------------------------\n");
+print("                            Extrapolation Scheme EP1  \n");
+print("                           (All energies in Hartrees)\n");
+print("Description of the notation              : J. Phys. Chem. A 2012, 116, 19, 4801-4816\n");
+print("Used exponents                           : J. Chem. Theory Comput., 7, 33-43 (2011)\n"); 
+print("Formulation of SCF extrapolation         : J. Chem. Phys. 2008, 129, 184116\n");
+print("Formulation of correlation extrapolation : J. Chem. Phys. 1997, 106, 9639\n");
+print("------------------------------------------------------------------------------------\n");
+print("Molecule                                 : %s\n", molecule);
+print("Charge                                   : %-d\n", charge);
+print("Multiplicity                             : %-d\n", mult);
+print("Computational method                     : %s\n", method);
+print("Basis sets                               : %s/%s\n", basisSets[0], basisSets[1]);
+print("Cardinal numbers                         : %d/%d\n", cardinalNumbers[0], cardinalNumbers[1]);
+print("Alpha                                    : %-.4lf\n", alpha);
+print("Beta                                     : %-.4lf\n", beta);
+print("------------------------------------ SCF Part -------------------------------------\n");
+print("SCF Energy with %-14s           : %-20.10lf\n", basisSets[0],SCF_X);
+print("SCF Energy with %-14s           : %-20.10lf\n", basisSets[1],SCF_Y);
+print("CBS SCF Energy                           : %-20.10lf\n", CBS_SCF);
+print("-------------------------------- Correlation Part ---------------------------------\n");
+print("Correlation Energy with %-14s   : %-20.10lf\n", basisSets[0],corr_X);
+print("Correlation Energy with %-14s   : %-20.10lf\n", basisSets[1],corr_Y);
+print("CBS Correlation Energy                   : %-20.10lf\n", CBS_Corr);
+print("------------------------------------ Total ----------------------------------------\n");
+print("Total CBS Energy                         : %-20.10lf\n", CBS_Total);
+print("-----------------------------------------------------------------------------------\n");
+print("-----------------------------------------------------------------------------------\n");
+#Final end
+EndRun

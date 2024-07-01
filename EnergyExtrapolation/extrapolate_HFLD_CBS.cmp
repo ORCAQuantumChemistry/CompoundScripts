@@ -1,0 +1,129 @@
+# Name: Extrapolate-HFLD-CBS
+#
+# *************************************** DESCRIPTION ****************************************************************
+# This script is for CBS(3/4) extrapolation of closed-shell [1] and open-shell [2] HFLD energies computed with TightPNO 
+# and TCutPNO = 1e-8.  This computational level was shown as the gold standard [2] of HFLD computations. 
+# 
+# CBS(X/Y) denotes two-point CBS extrapolation of the HFLD energies obtained with two different basis sets of 
+# consecutive cardinal numbers, i.e., X and Y, where Y = X +1. When the functional form of the reference [3] and 
+# correlation [4] energies are taken as 
+# 
+# 			  E_SCF_X = E_SCF_CBS + A*exp(-alpha*sqrt(X))
+#                           E(corr)_X = E(corr)_CBS + B*X^(-beta)
+# 
+# one obtains CBS-extrapolated reference (E_SCF_CBS) and correlation (E(corr)_CBS) energies in a compact form [5] as
+#
+# 			  E_SCF_CBS = E_SCF_X + F_0*(E_SCF_Y - E_SCF_X)
+# 		   E(corr)_CBS = E(corr)_X + F_corr*(E(corr)_Y - E(corr)_X)
+#
+# where
+#               F_0 = exp(alpha*sqrt(Y)) / [exp(alpha*sqrt(Y)) - exp(alpha*sqrt(X))]
+#                             F_corr = Y^(beta) / Y^(beta) - X^(beta)
+#
+# The alpha and beta exponents [6] and the corresponding F values are tabulated below for the conveinence
+# for (aug-)cc-pVnZ type of basis functions.
+# 
+#                                        Reference Energy         Correlation Energy                                       
+#                                        alpha        F_0          beta        F_corr
+#                                       ----------------------------------------------
+#	(aug-)cc-pVnZ     CBS(2/3)        4.42   1.325216          2.46      1.584336
+#	                  CBS(3/4)        5.46   1.301304          3.05      1.711889
+#
+#
+# Herein we perform CBS(3/4) extrapolation for both HF and correlation (London dispersion) energies 
+# with aug-cc-pVXZ (X = T and Q). The CBS extrapolated HFLD energy is then equal to
+#
+# 			     E_Total_Total = E_SCF_CBS + E(corr)_CBS
+#
+# Note that there are several choices for the reference part of the open-shell HFLD. By default, UHF energy
+# is considered as the reference in ORCA, as discussed in [2].
+#
+#
+# *************************************** LITERATURE  ****************************************************************
+#
+#[1] Altun, A.; Neese, F.; Bistoni, F.JCTC, 2019, 15, 5894-5907
+#[2] Altun, A.; Neese, F.; Bistoni, F. JCTC, 2022, 18, 2292-2307
+#[3] Zhong, S.; Barnes, E.C.; Petersson, G.A. J. Chem. Phys. 2008, 129, 184116
+#[4] Helgaker, T.; Klopper, W.; Koch, H. J. Chem. Phys. 1997, 106, 9639
+#[5] Altun, A.; Neese, F.; Bistoni, F. JCTC, 2020, 16, 6142-6149
+#[6] Neese, F.; Valeev, E.F. JCTC, 2011, 7, 33-43
+#
+# ******************************************  METHOD   ***************************************************************
+#
+#
+#Define some variables
+Variable  Small_BS="aug-cc-pVTZ";  #The smaller basis set used in the extrapolation
+Variable  Large_BS="aug-cc-pVQZ";  #The larger basis set used in the extrapolation
+Variable  CBS="CBS(3/4)";          #CBS-extrapolated result
+Variable  X, Y;                    #Cardinal number of basis sets
+variable  F_0, F_corr;             #The constants used in CBS extrapolation (see the table in the DESCRIPTION section)
+Variable  E_SCF_X, E_SCF_Y;        #The reference HF energies
+Variable  E_LD_X;                  #The dispersion energy for basis set with X
+Variable  E_LD_Y;                  #The dispersion energy for basis set with Y
+Variable  E_Total_X;               #Total HFLD energy for basis set with X
+Variable  E_Total_Y;               #Total HFLD energy for basis set with Y
+Variable  E_SCF_CBS;               #The CBS extrapolated SCF energy
+Variable  E_LD_CBS;                #The CBS extrapolated dispersion energy  
+Variable  E_Total_CBS;             #The CBS extrapolated HFLD energy
+#
+#
+# The parameters for CBS(3/4) with aug-cc-pVnZ (n = T and Q) 
+X = 3;               #Triple zeta
+Y = 4;               #Quadruple zeta
+F_0    = 1.301304;
+F_corr = 1.711889;
+#
+#------------------------------------------------------------------------------
+#Calculation with the small basis set
+#(Calculation 1)
+New_Step
+!HFLD aug-cc-pVTZ RIJK aug-cc-pVTZ/JK aug-cc-pVQZ/C VeryTightSCF TightPNO
+% MDCI TCutPNO 1e-8 printlevel 3 END
+% BASIS auxjk "autoaux" auxc "autoaux" autoauxlmax true END
+# Here autoaux module is used. If wanted to use the standard "/C" basis specified 
+# in the simple input line instead, take the %BASIS block in the comment for both 
+# caculations. 
+Step_End
+#Read the values
+Read E_SCF_X       = SCF_ENERGY[1];
+Read E_Total_X     = JOB_INFO_TOTAL_EN[1];
+E_LD_X             = E_Total_X - E_SCF_X;  
+#
+#------------------------------------------------------------------------------
+#Calculation with the large basis set
+#(Calculation 2)
+New_Step
+!HFLD aug-cc-pVQZ RIJK aug-cc-pVQZ/JK aug-cc-pV5Z/C VeryTightSCF TightPNO
+% MDCI TCutPNO 1e-8 printlevel 3 END
+% BASIS auxjk "autoaux" auxc "autoaux" autoauxlmax true END
+Step_End
+#Read the values
+Read E_SCF_Y       = SCF_ENERGY[2];
+Read E_Total_Y     = JOB_INFO_TOTAL_EN[2];
+E_LD_Y             = E_Total_Y - E_SCF_Y;
+#
+#------------------------------------------------------------------------------
+#
+#CBS extrapolation of the reference energy
+E_SCF_CBS = E_SCF_X + F_0*(E_SCF_Y - E_SCF_X);    
+#
+#CBS extrapolation of the dispersion energy
+E_LD_CBS = E_LD_X + F_corr*(E_LD_Y - E_LD_X);
+#
+#CBS extrapolated total energy
+E_Total_CBS = E_SCF_CBS + E_LD_CBS;
+#
+#
+print("\n\n================================================================================\n");
+print("=========================== SUMMARY OF ENERGIES (Eh) ===========================\n");
+print("================================================================================\n\n");
+print("%33s %21s %21s \n", Small_BS, Large_BS, CBS);
+print("                      -----------           -----------           -----------\n");
+print("SCF Energy %22lf %21lf %21lf \n", E_SCF_X, E_SCF_Y, E_SCF_CBS);
+print("Dispersion Energy %15lf %21lf %21lf \n", E_LD_X, E_LD_Y, E_LD_CBS);
+print("HFLD Energy %21lf %21lf %21lf \n\n", E_Total_X, E_Total_Y, E_Total_CBS);
+#
+#
+#Final end
+End
+#

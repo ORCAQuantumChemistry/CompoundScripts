@@ -1,0 +1,29 @@
+# This is a small script thas shows how
+# 'Compound' can replace the previous
+# ORCA '$New_Job' feature
+%Compound
+  # ------------------------------------
+  # First job
+  # ------------------------------------
+  New_Step
+    !BP86 
+    *xyz 0 1
+      H 0.0 0.0 0.0
+      H 0.0 0.0 0.8
+    *
+  Step_End
+  # ------------------------------------
+  # Second job with same goemetry
+  # but different functional
+  # ------------------------------------
+  New_Step
+    !B3LYP
+    *xyz 0 1
+      H 0.0 0.0 0.0
+      H 0.0 0.0 0.8
+    *
+  Step_End
+EndRun
+  
+
+  

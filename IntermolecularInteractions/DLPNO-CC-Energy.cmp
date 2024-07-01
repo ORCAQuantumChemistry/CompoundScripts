@@ -1,0 +1,101 @@
+# Creator:  Giovanni Bistoni, January 2022
+# Updated:  Dimitrios G. Liakos and Frank Neese June of 2024
+#
+#
+# This is a composite scheme for accurate calculation of hydrogen 
+#   bond interactions. For details see "The first microsolvation 
+#   step for furans: New experiments and benchmarking strategies 
+#    scheme
+#        J. Chem. Phys. 152, 164303 (2020)
+# 
+# This scheme uses a DFT optimization at the B3LYP level, ZPE 
+#   correction at the same level of theory and finaly calculation
+#   of the electronic energy using DLPNO-CCSD(T1)/aug-cc-pWCV5Z
+# 
+# #  In the current implementation we perform the following steps:
+#
+#  Step 1. A Geometry optimization using B3LYP-D3(BJ)/def2-QZVPP.
+#          Get the geometry
+#
+#  Step 2. Calculate vibrational frequencies using the same method
+#          with the previous calculation. Get Zero-Point Energy (ZPE)
+#
+#  Step 3. Calculate electronic energy using DLPNO-CCSD(T1)/aug-cc-pwCV5Z
+#
+#
+# NOTE 1: Steps 1 and 2 could be combined in 1 but we will keep them 
+#         separate for easy of customization
+#
+# NOTE 2: In steps 1 and 2 the alternative with def2-TZVPP is also possible
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge             = 0;
+Variable mult               = 1;
+variable DFT_basis_set      = "def2-QZVPP";
+variable functional         = "B3LYP";
+variable DLPNO_basis_set    = "aug-cc-pwCV5Z";
+variable DLPNO_RI_basis_set = "aug-cc-pwCV5Z/C"; 
+# -----------------  Rest of variables --------------------------
+variable ZPE;      # The ZPE energy
+variable E_Elec;   # The DLPNO Electronic energy
+variable E_Total;  # The Total energy
+#
+#
+# ----------------------------------------------------------
+# (Calculation 1)
+# Optimization of the geometry
+# ----------------------------------------------------------
+New_Step
+  ! &{functional} &{DFT_basis_set} Opt D3BJ TightSCF 
+  *xyzfile &{charge} &{mult} &{molecule}
+STEP_END
+#
+# ----------------------------------------------------------
+# (Calculation 2)
+# Calculation of vibrational frequencies and ZPE
+# ----------------------------------------------------------
+New_Step
+  ! &{functional} &{DFT_basis_set} Freq D3BJ TightSCF 
+Step_End
+ZPE.readProperty(propertyName="THERMO_ZPE");
+#    
+#
+# ----------------------------------------------------------
+# (Calculation 3)
+# Accurate electronic energy using DLPNO-CCSD(T)
+# ----------------------------------------------------------
+New_Step
+  !DLPNO-CCSD(T1) &{DLPNO_basis_set} &{DLPNO_RI_basis_set} TightSCF
+STEP_END
+E_Elec.readProperty(propertyName="MDCI_TOTAL_ENERGY");   
+#
+#
+# --------------------------------------------------------------
+# Sum up the terms to get the final energy
+# FinalEnergy = E_Elec + ZPE;
+# --------------------------------------------------------------
+E_Total = E_Elec + ZPE;               
+#
+#
+# ----------------------------------------------------------
+# Printing of the results
+print("\n\n-------------------------------------------------------\n");
+print("           DLPNO-CC-Energy composite scheme by:   \n");
+print("                Giovanni Bistoni et al. \n");
+print("            J. Chem. Phys. 152, 164303 (2020)\n");
+print("                   E = E_Elec + ZPE\n");
+print("               (all energies in Hartrees)       \n");
+print(" Molecule                    : %s\n", molecule);
+print(" Charge                      : %18d\n", charge);
+print(" Mult                        : %18d\n", mult);
+print(" DFT Functional used         : %s\n", functional);
+print(" Basis Set for DFT           : %s\n", DFT_basis_set);
+print(" Basis Set for DLPNO         : %s\n", DLPNO_basis_set);
+print(" Electronic Energy (E_Elec)  : %18.10lf\n", E_Elec);
+print(" Zero point energy (ZPE)     : %18.8lf\n", ZPE);
+print(" Total energy      (E_Total) : %18.8lf\n", E_Total); 
+
+EndRun

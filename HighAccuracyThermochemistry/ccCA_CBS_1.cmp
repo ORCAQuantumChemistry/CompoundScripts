@@ -1,0 +1,207 @@
+# Authors: Dimitrios G. Liakos and Frank Neese 
+# Revised: June of 2024
+#
+#
+#   This is the ccCA-CBS-1 scheme by N. J. DeYonker, 
+#      T. R. Cundari, and A. K. Wilson based on:
+#      J. Chem. Phys. 124, 114104 (2006) 
+#
+#  In the current implementation we perform the following steps:
+#
+#  Step 1. A single point calculation with B3LYP/6-31G*
+#
+#  Step 2. Based on the geometry decide if we are working with
+#          an atom or a molecule
+#
+#  Step 3. If it is a molecule do a geometry optimization and a 
+#          Frequency calculation. Get ZPEScaled
+#
+#  Step 4. Perform a calculation using MP2/aug-cc-pVDZ (EMP2_aDZ)
+#
+#  Step 5. Perform a calculation using MP2/aug-cc-pVTZ (EMP2_aTZ)
+#
+#  Step 6. Perform a calculation using MP2/aug-cc-pVTZ (EMP2_aTZ)
+#
+#  Step 7. Evaluate  ERef= (E(aQZ)*(aDZ) - E(aTZ)^2)/(E(aQZ)+E(aDZ)-2*E(aTZ)
+#
+#  Step 8. Perform a calculation using MP2/cc-pVTZ (EMP2_TZ)
+#
+#  Step 9. Perform a calculation using QCISD(T)/cc-pVTZ (EQCISDT_TZ)
+#
+#  Step 10.Evaluate DE_QCI = E(QCISD(T)/cc-pVTZ - E(MP2/cc-pVTZ)
+#
+#  Step 11.Perform a calculation using MP2/NoFrozenCore/aug-cc-pCVTZ (EMP2Full)
+#
+#  Step 12.Evaluate core-valence correction DECV = EMP2Full - EMP2_aTZ
+#
+#  Step 13.Sum all terms to get final energy:
+#          FinalEnergy = ERef + ZPEScaled + DE_QCI + DECV;
+#
+#
+# NOTE 1: For reference energy we use the extapolated CBS/MP2 energy 
+#         calculated with the extrapolation scheme proposed by S.S. Xantheas 
+#         and T.H. Dunning (JCP 97, 18-19 (1993) 
+#         and David Feller  (J. Chem. Phys. 1993, 98, 7059-7071) 
+#         that uses the function:
+#                         E(X) = E(CBS)+ Bexp(-Cx)
+#         for the total energy. Using this form for the energy and DZ,TZ and 
+#         QZ basis sets the E(CBS) can be estimated as:
+#                E(CBS)= (E(DZ)*E(QZ)-E(TZ)*E(TZ))/(E(QZ)+E(DZ)-2E(TZ)
+# NOTE 2: For MP2 we use the RI version
+#
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge = 0;
+Variable mult   = 1;
+Variable Scale  = 0.9854;              # The scaling factor for the ZPE
+# -----------------  Rest of variables --------------------------
+variable ZPE, ZPEScaled;               # The ZPE correction 
+variable EMP2_aDZ, EMP2_aTZ, EMP2_aQZ; # MP2 with small and big basis sets
+variable ERef;                         # The total Reference energy
+variable EMP2_TZ, EQCISDT_TZ, DE_QCI;  # The total energies with QCISD(T) and MP2 for higher order correction
+variable EMP2Full,  DECV;              # Full MP2, MP2 with frozen core and DCV
+variable HartreeToKcal;                
+variable FinalEnergy;                  
+variable isMolecule = true;
+Geometry myGeom;
+Variable nAtoms = 0;
+
+# -------------------------------------------------------------
+# (Calculation 1)
+# Single point calculation using B3LYP/6-31G*
+# ------------------------------------------------------------- 
+New_Step
+  !B3LYP 6-31G* VeryTightSCF DefGrid3
+  *xyzfile &{charge} &{mult} &{molecule}
+STEP_END
+myGeom.Read();
+nAtoms = myGeom.GetNumOfAtoms();
+if (nAtoms = 1) then
+  print("We are working with an atom\n");
+  isMolecule = false;
+else
+  print("We are working with a molecule\n");
+endIf
+
+
+# -------------------------------------------------------------
+# (Calculation 2)  If we are working with a molecule then
+# optimize the geometry and get the  ZPE 
+# -------------------------------------------------------------
+if (isMolecule) then
+  New_Step
+    !B3LYP 6-31G* VeryTightSCF Opt Freq DefGrid3
+  STEP_END
+  ZPE.readProperty(propertyName="THERMO_ZPE");
+else
+  ZPE = 0.0;
+endIf
+ZPEScaled  = Scale*ZPE;
+
+# -------------------------------------------------------------
+# (Calculation 3)
+# MP2 Energy with aug-cc-pVDZ (for CBS reference energy)
+# -------------------------------------------------------------
+New_Step
+ !MP2 aug-cc-pVDZ VeryTightSCF
+STEP_END
+EMP2_aDZ.readProperty(propertyName="MP2_TOTAL_ENERGY"); 
+
+# -------------------------------------------------------------
+# (Calculation 4)
+# MP2 Energy with aug-cc-pVTZ (for CBS reference energy)
+# -------------------------------------------------------------
+New_Step
+ !MP2 aug-cc-pVTZ VeryTightSCF
+STEP_END
+EMP2_aTZ.readProperty(propertyName="MP2_TOTAL_ENERGY");
+
+# --------------------------------------------------------------
+# (Calculation 5)
+# MP2 Energy with aug-cc-pVQZ (for CBS reference energy)
+# --------------------------------------------------------------
+New_Step
+ !MP2 aug-cc-pVQZ VeryTightSCF
+STEP_END
+EMP2_aQZ.readProperty(propertyName="MP2_TOTAL_ENERGY");
+
+
+# --------------------------------------------------------------
+# Calculate ERef= (E(aQZ)*(aDZ) - E(aTZ)^2)/(E(aQZ)+E(aDZ)-2*E(aTZ)
+# --------------------------------------------------------------
+ERef = ((EMP2_aQZ*EMP2_aDZ) -(EMP2_aTZ*EMP2_aTZ))/((EMP2_aQZ+EMP2_aDZ)-(2*EMP2_aTZ));  
+
+# --------------------------------------------------------------
+# (Calculation 6)
+# MP2 Energy with cc-pVTZ (for QCISD(T) correction) 
+# --------------------------------------------------------------
+New_Step
+  !MP2 cc-pVTZ VeryTightSCF
+STEP_END
+EMP2_TZ.readProperty(propertyName="MP2_TOTAL_ENERGY");   
+
+# --------------------------------------------------------------
+# (Calculation 7)
+# QCISD(T) Energy with cc-pVTZ (for QCISD(T) correction
+# --------------------------------------------------------------
+New_Step
+  !QCISD(T) cc-pVTZ VeryTightSCF
+STEP_END
+EQCISDT_TZ.readProperty(propertyName="MDCI_TOTAL_ENERGY");
+  
+# --------------------------------------------------------------
+# Evaluate the QCISD(T) correction
+# DE_QCI = E(QCISD(T)/cc-pVTZ - E(MP2/cc-pVTZ)
+# --------------------------------------------------------------
+DE_QCI = EQCISDT_TZ - EMP2_TZ;           
+
+# --------------------------------------------------------------
+# (Calculation 8)
+# MP2 Full
+# --------------------------------------------------------------
+New_Step
+  !MP2 NoFrozenCore aug-cc-pCVTZ VeryTightSCF
+STEP_END
+EMP2Full.readProperty(propertyName="MP2_TOTAL_ENERGY");   
+
+# --------------------------------------------------------------
+# Evaluate core valence correction
+# DECV = EMP2Full - EMP2_aTZ;
+# --------------------------------------------------------------
+DECV = EMP2Full - EMP2_aTZ;            
+
+# --------------------------------------------------------------
+# Sum up the terms to get the final energy
+# FinalEnergy = ERef + ZPEScaled + DE_QCI + DECV;
+# --------------------------------------------------------------
+FinalEnergy = ERef + ZPEScaled + DE_QCI + DECV;           
+
+
+print("\n\n-------------------------------------------------------\n");
+print("           ccCA-CBS-1 composite scheme by:   \n");
+print("       N. J. DeYonker, T. R. Cundari, and A. K. Wilson\n");
+print("           J. Chem. Phys. 124, 114104 (2006) \n");
+print("         E = ERef + ZPEScaled + DE_QCI + DECV\n");
+print("               (all energies in Hartrees)       \n");
+print(" Molecule                :    %s\n", molecule);
+print(" Charge                  :    %18d\n", charge);
+print(" Mult                    :    %18d\n", mult);
+print(" Scaling Factor          :    %18.3lf\n", Scale);
+print(" ZPE                     :    %18.10lf\n", ZPE);
+print(" ZPEScaled               :    %18.10lf\n", ZPEScaled);
+print(" E(MP2/aug-cc-pVDZ)      :    %18.10lf\n", EMP2_aDZ);
+print(" E(MP2/aug-cc-pVTZ)      :    %18.10lf\n", EMP2_aTZ);
+print(" E(MP2/aug-cc-pVQZ)      :    %18.10lf\n", EMP2_aQZ);
+print(" ERef                    :    %18.10lf\n", ERef);
+print(" E(MP2/cc-pVTZ)          :    %18.10lf\n", EMP2_TZ);
+print(" E(QCISD(T)/cc-pVTZ      :    %18.10lf\n", EQCISDT_TZ);
+print(" QCISD(T) correction     :    %18.10lf\n", DE_QCI);
+print(" E(MP2/No Frozen core)   :    %18.10lf\n", EMP2Full);
+print(" Core-Valence correction :    %18.10lf\n", DECV);
+print(" Final Energy            :    %18.10lf\n", FinalEnergy);
+print(" ------------------------------------------------------------\n\n");
+
+EndRun

@@ -1,0 +1,187 @@
+# Author: Dimitrios Liakos
+# Date  : May of 2024
+#
+#
+#   This protocol estimates the complete basis limit (CBS) extrapolated electronic energy.
+# It extrapolates separately the SCF part and the correlation part. 
+# For the correlation part by default the script uses single reference methods 
+# (e.g. DLPNO-CCSD, CCSD(T), CEPA ...etc.). 
+#
+#
+# A description of the notation we use here             : J. Phys. Chem. A 2012, 116, 19, 4801-4816
+# The exponents used for the extrapolations             : J. Chem. Theory Comput., 7, 33-43 (2011) 
+# Original formulation of the SCF extrapolation         : J. Chem. Phys. 2008, 129, 184116
+# Original formulation of the correlation extrapolation : J. Chem. Phys. 1997, 106, 9639
+#
+#
+#
+#  In the current implementation we perform the following steps:
+#
+# Step 1. Use cardinal numbers to evaluate intermeidate quatities eX and eY
+#
+# Step 2. Perform a calculation with basis set X (default: cc-pVDZ) and the 
+#         expensive method. Read corr_X_exp
+#
+# Step 3: Perform a calculation with a basis set X (default: cc-pVDZ) and the
+#         cheaper method (default MP2). (Read SCF_X and corr_X)
+#
+# Step 4: Perform a calculation with a basis set Y (default: cc-pVTZ) and the
+#         cheaper method (default MP2). (Read SCF_Y and corr_Y)
+#
+# Step 5. Extrapolate SCF energy
+#
+#              CBS_SCF = (SCF_X*eY - SCF_Y*eX)/(eY-eX)
+#
+#         Extrapolate correlation energy
+#
+#              CBS_corr = (X^beta*corr_X - Y^beta*corr_Y)/(X^beta-Y^beta)
+#
+#         Sum up to get totall extrapolated energy
+#
+#              CBS_Total = CBS_SCF + CBS_corr + (corr_X_exp - corr_X)
+#
+#
+# Step 6. Print the results
+#
+#
+# NOTE 1. For SCF we use the function:
+#  
+#                   SCF(X) = SCF(CBS)+Aexp(-a*SQRT(X))
+#
+# NOTE 2. For correlation we use the equation:
+#   
+#             CBS(Corr)=(X^b*E_Corr(X))-Y^b*E_Corr(Y))/(X^b-Y^b):
+#
+# NOTE 3. The total CBS energy is given by
+#             CBS_Total = CBS_SCF + CBS_corr + (corr_X_exp - corr_X)
+#
+# NOTE 4: If the basis sets change, please make sure to adjust the  'alpha', 'beta' and 'cardinalValues'  
+#         accordingly.
+#
+# NOTE 5: The values of the variables can also be adjusted using the 'with' command in the ORCA input.
+#         In this case if one want to experiment just with the exponents the values to be adjusted are:
+#            alpha
+#            beta
+#         In case the same method is used but different basis sets, then the the values to adjust are:
+#            basisSets
+#            cardinalNumbers
+#            alpha
+#            beta 
+#         In case the method is changed then potentially also the reading properties should change
+#            method       
+#            method_exp
+#            expCorrProperty
+#            cheapCorrProperty
+#            chaepSCFProperty
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge           = 0;
+Variable mult             = 1;
+Variable method           = "MP2 ";               # The cheap method
+Variable method_exp       = "CCSD(T) ";           # The expensive method
+Variable restOfInput      = "VeryTightSCF";
+Variable basisSets        = {"cc-pVDZ", "cc-pVTZ"};
+Variable cardinalNumbers  = {2,3};
+Variable alpha            = 4.420;                #based on F. Neese et al. JCTC, 7,33-43 (2011)
+Variable beta             = 2.460;
+Variable expCorrProperty  = "MDCI_Corr_Energy";   # Property for the corr energy of the expensive method
+Variable cheapCorrProperty= "MP2_Corr_Energy";    # Property for the SCF energy of the cheap method
+Variable cheapSCFProperty = "MP2_Ref_Energy";     # Property for the corr energy of the cheap method
+# -----------------  Rest of variables --------------------------
+Variable  X, Y;                                   # The cardinal numbers
+Variable  SCF_X, SCF_Y;                           # The SCF energies
+Variable  eX, eY;                                 # Useful temporary intermediates
+Variable  corr_X, corr_Y, corr_X_exp;             # The correlation energies
+Variable  CBS_SCF, CBS_corr;                      # The extrapolated components
+Variable  CBS_Total;                              # The extrapolated total energy
+
+
+# -------------------------------------------------
+# Use X and Y cardinal numbers to evaluate 
+#   intermediate eX and eY values
+# -------------------------------------------------
+X  = cardinalNumbers[0];
+Y  = cardinalNumbers[1];
+eX = exp(-alpha*sqrt(X));
+eY = exp(-alpha*sqrt(Y)); 
+
+
+# -------------------------------------------------
+# Calculation with small basis set and expensive method
+# -------------------------------------------------
+New_Step
+  !&{method_exp} &{basisSets[0]} &{restOfInput}
+  *xyzfile &{charge} &{mult} &{molecule}
+Step_End
+corr_X_exp.readProperty(propertyName=expCorrProperty);  
+
+# -------------------------------------------------
+# Calculation with small basis set and cheap method
+# -------------------------------------------------
+New_Step
+  !&{method} &{basisSets[0]} &{restOfInput} 
+Step_End
+SCF_X.readProperty(propertyName=cheapSCFProperty);   
+corr_X.readProperty(propertyName=cheapCorrProperty);  
+
+# -------------------------------------------------
+# Calculation with large basis set and cheap method
+# -------------------------------------------------
+New_Step
+  !&{method} &{basisSets[1]} &{restOfInput}
+Step_End
+SCF_Y.readProperty(propertyName=cheapSCFProperty);    
+corr_Y.readProperty(propertyName=cheapCorrProperty);  
+
+# -------------------------------------------------
+# Evaluate the extrapolated quatities
+# -------------------------------------------------
+#              Extrapolate SCF
+CBS_SCF = (SCF_X*eY - SCF_Y*eX)/(eY-eX);    
+
+#    Extrapolate the correlation energy
+CBS_corr = (X^beta*corr_X - Y^beta*corr_Y)/(X^beta-Y^beta);  
+
+#                   Sum up
+CBS_Total = CBS_SCF + CBS_corr + (corr_X_exp - corr_X);          
+
+# -------------------------------------------------
+# Print the results
+# -------------------------------------------------
+print("\n\n------------------------------------------------------------------------------------\n");
+print("------------------------------------------------------------------------------------\n");
+print("                            Extrapolation Scheme EP2  \n");
+print("                           (All energies in Hartrees)\n");
+print("Description of the notation              : J. Phys. Chem. A 2012, 116, 19, 4801-4816\n");
+print("Used exponents                           : J. Chem. Theory Comput., 7, 33-43 (2011)\n");
+print("Formulation of SCF extrapolation         : J. Chem. Phys. 2008, 129, 184116\n");
+print("Formulation of correlation extrapolation : J. Chem. Phys. 1997, 106, 9639\n");
+print("------------------------------------------------------------------------------------\n");
+print("Molecule                                 : %s\n", molecule);
+print("Charge                                   : %-d\n", charge);
+print("Multiplicity                             : %-d\n", mult);
+print("Expensive method                         : %-s\n", method_exp);
+print("Cheap method                             : %-s\n", method);
+print("Basis sets                               : %s/%s\n", basisSets[0], basisSets[1]);
+print("Cardinal numbers                         : %d/%d\n", X, Y);
+print("Alpha                                    : %.3lf\n", alpha);
+print("Beta                                     : %.3lf\n", beta);
+print("\n -------------------- SCF Part ----------------------\n");
+print("SCF Energy with %-14s                        : %-20.10lf\n", basisSets[0],SCF_X);
+print("SCF Energy with %-14s                        : %-20.10lf\n", basisSets[1],SCF_Y);
+print("CBS SCF Energy %-14s                         : %-20.10lf\n", "",CBS_SCF);
+print("\n ---------------- Correlation Part ------------------\n");
+print("Corr. Energy with %-12s and %-18s : %-20.10lf\n", basisSets[0], method_exp, corr_X_exp);
+print("Corr. Energy with %-12s and %-18s : %-20.10lf\n", basisSets[0], method, corr_X);
+print("Corr. Energy with %-12s and %-18s : %-20.10lf\n", basisSets[1], method, corr_Y);
+print("CBS Corr. Energy %14s (no correction)       : %-20.10lf\n", "",CBS_Corr);
+print("CBS Corr. Energy %14s                       : %-20.10lf\n", "", CBS_Corr + (corr_X_exp - corr_X));
+print("\n -------------------- Total -------------------------\n");
+print("Total CBS Energy (no correction)                      : %-20.10lf\n", CBS_Total);
+print("Total CBS Energy                                      : %-20.10lf\n", CBS_Total + (corr_X_exp - corr_X));
+
+#Final end
+EndRun

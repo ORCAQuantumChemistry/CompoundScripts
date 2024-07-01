@@ -1,0 +1,166 @@
+# Authors: Dimitrios G. Liakos and Frank Neese 
+# Revised: June of 2024
+#
+#
+#   This is the ccCA-aTZ-QCISD(T) scheme by N. J. DeYonker, 
+#      T. R. Cundari, and A. K. Wilson based on:
+#      J. Chem. Phys. 124, 114104 (2006) 
+#
+#
+#  In the current implementation we perform the following steps:
+#
+#  Step 1. A single point calculation with B3LYP/6-31G*
+#
+#  Step 2. Based on the geometry decide if we are working with
+#          an atom or a molecule
+#
+#  Step 3. If it is a molecule do a geometry optimization and a 
+#          Frequency calculation. Get ZPEScaled
+#
+#  Step 4. Perform a calculation using QCISD(T)/aug-cc-pVTZ (ERef)
+#
+#  Step 7. Perform a calculation using MP2/aug-cc-pVTZ (EMP2Small)
+#
+#  Step 8. Perform a calculation using MP2/aug-cc-pVQZ (EMP2Big)
+#
+#  Step 9. Evaluate polarization correction (DEPol = EMP2Big - EMP2Small)
+#
+#  Step 9. Perform a calculation using MP2/NoFrozenCore/aug-cc-pCVTZ (EMP2Full)
+#
+#  Step 11.Evaluate core-valence correction DECV = EMP2Full - EMP2Small (DECV)
+#
+#  Step 12.Sum up all terms to get final energy:
+#          FinalEnergy = ERef + ZPEScaled + DEPol + DECV;
+#  
+#  Step 13.Print the results
+# 
+#
+#
+# NOTE 1: For reference energy instead of MP4 we use QCISD(T).
+#         In this case we do not add the DE(QCI) correction#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge = 0;
+Variable mult   = 1;
+Variable Scale  = 0.9854;       # The scaling factor for the ZPE#
+# -----------------  Rest of variables --------------------------
+# Define some variables
+variable ZPE, ZPEScaled;        # The ZPE correction 
+variable ERef;                  # The total Reference energy
+variable EMP2Small, EMP2Big;    # The MP2 energies with aug-cc-pVTZ and aug-cc-pVQZ
+variable EPol, DEPol;           # The total 'polarization energy' and the corresponding correction
+variable ECV,  DECV;            # The core valence energy and the corresponding correction
+variable EMP2Full;              # Full MP2, MP2 with frozen core and DCV
+variable HartreeToKcal;
+variable FinalEnergy;
+variable isMolecule = true;
+Geometry myGeom;
+Variable nAtoms = 0;
+
+# -------------------------------------------------------------
+# (Calculation 1)
+# Single point calculation using B3LYP/6-31G*
+# ------------------------------------------------------------- 
+New_Step
+  !B3LYP 6-31G* VeryTightSCF DefGrid3
+  *xyzfile &{charge} &{mult} &{molecule}
+STEP_END
+myGeom.Read();
+nAtoms = myGeom.GetNumOfAtoms();
+if (nAtoms = 1) then
+  print("We are working with an atom\n");
+  isMolecule = false;
+else
+  print("We are working with a molecule\n");
+endIf
+
+
+# -------------------------------------------------------------
+# (Calculation 2)  If we are working with a molecule then
+# optimize the geometry and get the  ZPE 
+# -------------------------------------------------------------
+if (isMolecule) then
+  New_Step
+    !B3LYP 6-31G* VeryTightSCF Opt Freq DefGrid3
+  STEP_END
+  ZPE.readProperty(propertyName="THERMO_ZPE");
+else
+  ZPE = 0.0;
+endIf
+ZPEScaled  = Scale*ZPE;
+
+# -------------------------------------------------------------
+# (Calculation 3)
+# QCISD(T)/aug-cc-pVTZ Reference energy
+# -------------------------------------------------------------
+New_Step
+ !QCISD(T) aug-cc-pVTZ VeryTightSCF
+STEP_END
+ERef.ReadProperty(propertyName="MDCI_Total_Energy");   
+
+# -------------------------------------------------------------
+# (Calculation 4)
+# MP2/aug-cc-pVTZ EMP2Small
+# -------------------------------------------------------------
+New_Step
+  !MP2 aug-cc-pVTZ VeryTightSCF
+STEP_END
+EMP2Small.ReadProperty(propertyName="MP2_TOTAL_ENERGY"); 
+
+# -------------------------------------------------------------
+# (Calculation 5)
+# MP2/aug-cc-pVQZ EMP2Big
+# -------------------------------------------------------------
+New_Step
+  !MP2 aug-cc-pVQZ VeryTightSCF
+STEP_END
+EMP2Big.ReadProperty(propertyName="MP2_TOTAL_ENERGY");
+  
+# -------------------------------------------------------------
+# Evaluate Polarization correction DEPol
+# -------------------------------------------------------------
+DEPol = EMP2Big - EMP2Small;         
+
+# -------------------------------------------------------------
+# (Calculation 6)
+# MP2/NoFrozenCore/aug-cc-pCVTZ EMP2Full
+# -------------------------------------------------------------
+New_Step
+  !MP2 NoFrozenCore aug-cc-pCVTZ VeryTightSCF
+STEP_END
+EMP2Full.readProperty(propertyName="MP2_TOTAL_ENERGY"); 
+
+# -------------------------------------------------------------
+# Evaluate Core-Valence correction
+# -------------------------------------------------------------
+DECV = EMP2Full - EMP2Small;        
+
+# --------------------------------------------------------------
+# Sum up the terms to get the final energy
+# FinalEnergy = ERef + ZPEScaled + DEPol + DECV;
+# --------------------------------------------------------------
+FinalEnergy = ERef + ZPEScaled + DEPol + DECV;   
+
+print("\n\n-------------------------------------------------------\n");
+print("           ccCA-aTZ-QCISD(T) composite scheme by:   \n");
+print("       N. J. DeYonker, T. R. Cundari, and A. K. Wilson\n");
+print("           J. Chem. Phys. 124, 114104 (2006) \n");
+print("        E = ERef + ZPEScaled + DEPol + DECV\n");
+print("               (all energies in Hartrees)       \n");
+print(" Molecule                           :    %s\n", molecule);
+print(" Charge                             :    %18d\n", charge);
+print(" Mult                               :    %18d\n", mult);
+print(" Scaling Factor                     :    %18.3lf\n", Scale);
+print(" ZPE                                :    %18.10lf\n", ZPE);
+print(" ZPEScaled                          :    %18.10lf\n", ZPEScaled);
+print(" E(QCISD(T)/aug-cc-pVTZ) (ERef)     :    %18.10lf\n", ERef);
+print(" E(MP2/aug-cc-pVTZ)      (EMP2Small):    %18.10lf\n", EMP2Small);
+print(" E(MP2/aug-cc-pVQZ)      (EMP2Big)  :    %18.10lf\n", EMP2Big);
+print(" Polarization correction (DEPol)    :    %18.10lf\n", DEPol);
+print(" E(MP2/aug-cc-pCVTZ)     (EMP2Full) :    %18.10lf\n", EMP2Full);
+print(" Valence-Core correction (DECV)     :    %18.10lf\n", DECV);
+print(" Final Energy                       :    %18.10lf\n", FinalEnergy);
+print(" ------------------------------------------------------------\n\n");
+END

@@ -1,0 +1,211 @@
+# Author: Zikuan Wang 
+# Date  : May of 2024
+#
+# This is a compound script that calculates the
+#  quadrupole-quadrupole polarizability tensor -numerically
+#  using the double derivative of energy.
+#
+# The idea is the following:
+#
+# 1 Perform a field free calculation
+#
+# 2 Loop over directions I=XX,YY,ZZ,XY,XZ,YZ
+#
+# 3 Loop over directions J=XX,YY,ZZ,XY,XZ,YZ
+#    - put a small Q-field in directions I and J
+#    - Solve equations to get the energy for each combination
+#    - Polarizability alpha(I,J) =- ( E(+I,+J) - E(+I,-J)-E(-I,+J)+ E(-i,-j)/(4*Field^2)
+#
+# 4 Print polarisability
+#
+# ----------------------------------------------------------------------
+# ----------------------    Variables    -------------------------------
+# --- Variables to be adjusted (e.g. using 'with' ----------------------
+Variable molecule    = "h2o.xyz";
+Variable charge      = 0;
+Variable mult        = 1;
+Variable method      = "HF";
+Variable basis       = " ";
+Variable restOfInput = "VeryTightSCF";
+Variable blocksInput = " ";
+Variable E_Field     = 0.0001;
+Variable enPropName  = "JOB_Info_Total_En";
+Variable removeFiles = true;
+# -------------- Rest of the variables --------------------------------
+Variable FField[6];
+Variable EFree, EPlusPlus, EPlusMinus, EMinusPlus, EMinusMinus, a[6][6];
+Variable FFieldStringPlusPlus, FFieldStringPlusMinus;
+Variable FFieldStringMinusPlus, FFieldStringMinusMinus;
+Variable aEigenValues, aEigenVectors;
+
+# -----------------------------------------
+# Calculation without field
+# -----------------------------------------
+New_Step
+  !&{method} &{basis} &{restOfInput}
+  &{blocksInput}
+  *xyzfile &{charge} &{mult} &{molecule}
+Step_End
+EFree.ReadProperty(propertyName=enPropName);
+
+# ------------------------------------------------------------
+# Loop over the x, y, z directions
+# ------------------------------------------------------------
+for i from 0 to 5 Do
+  for j from 0 to 5 Do
+    # ----------------------------------------------------------
+    # Create the appropriate direction oriented field string 
+    # ----------------------------------------------------------
+    # ---------------------- (++) ------------------------------
+    for k from 0 to 5 Do
+      FField[k] = 0.0;
+    EndFor
+    FField[i] = FField[i] + E_Field;
+    FField[j] = FField[j] + E_Field;
+    write2String(FFieldStringPlusPlus,   " %lf,  %lf,  %lf,  %lf,  %lf,  %lf", 
+    FField[0], FField[1], FField[2], FField[3], FField[4], FField[5]);
+    #
+    # ---------------------- (+-) ------------------------------
+    for k from 0 to 5 Do
+      FField[k] = 0.0;
+    EndFor
+    FField[i] = FField[i] + E_Field;
+    FField[j] = FField[j] - E_Field;
+    write2String(FFieldStringPlusMinus,   " %lf,  %lf,  %lf,  %lf,  %lf,  %lf", 
+    FField[0], FField[1], FField[2], FField[3], FField[4], FField[5]);
+    #
+    # ---------------------- (-+) ------------------------------
+    for k from 0 to 5 Do
+      FField[k] = 0.0;
+    EndFor
+    FField[i] = FField[i] - E_Field;
+    FField[j] = FField[j] + E_Field;
+    write2String(FFieldStringMinusPlus,   " %lf,  %lf,  %lf,  %lf,  %lf,  %lf", 
+    FField[0], FField[1], FField[2], FField[3], FField[4], FField[5]);
+    #
+    # ---------------------- (--) ------------------------------
+    for k from 0 to 5 Do
+      FField[k] = 0.0;
+    EndFor
+    FField[i] = FField[i] - E_Field;
+    FField[j] = FField[j] - E_Field;
+    write2String(FFieldStringMinusMinus,   " %lf,  %lf,  %lf,  %lf,  %lf,  %lf", 
+    FField[0], FField[1], FField[2], FField[3], FField[4], FField[5]);
+
+    # ----------------------------------------
+    # Perform the calculations.
+    # The plus_plus (++) one
+    # ----------------------------------------
+    ReadMOs(1);
+    New_Step
+      !&{method} &{basis} &{restOfInput}
+      %SCF
+        QField = &{FFieldStringPlusPlus}
+      End
+      &{blocksInput}
+    Step_End
+    EPlusPlus.readProperty(propertyName=enPropName);
+    # ----------------------------------------
+    # The plus_minus (+-) one
+    # ----------------------------------------
+    ReadMOs(1);
+    New_Step
+      !&{method} &{basis} &{restOfInput}
+       %SCF
+        QField = &{FFieldStringPlusMinus}
+      End
+      &{blocksInput}
+    Step_End
+    EPlusMinus.readProperty(propertyName=enPropName);
+    # ----------------------------------------
+    # The minus_plus (-+) one
+    # ----------------------------------------
+    ReadMOs(1);
+    New_Step
+      !&{method} &{basis} &{restOfInput}
+      %SCF
+        QField = &{FFieldStringMinusPlus}
+      End
+      &{blocksInput}
+    Step_End
+    EMinusPlus.readProperty(propertyName=enPropName);
+    # ----------------------------------------
+    # And the minus_minus (--) one
+    # ----------------------------------------
+    ReadMOs(1);
+    New_Step
+      !&{method} &{basis} &{restOfInput}
+       %SCF
+        QField = &{FFieldStringMinusMinus}
+      End
+      &{blocksInput}
+    Step_End
+    EMinusMinus.readProperty(propertyName=enPropName);
+
+    a[i][j] = -(EPlusPlus-EPlusMinus-EMinusPlus+EMinusMinus)/(4*E_Field*E_Field);
+  EndFor
+EndFor
+
+
+# -----------------------------------------
+# Diagonalize
+# -----------------------------------------
+a.Diagonalize(aEigenValues, aEigenVectors);
+
+# -----------------------------------------
+# Do some printing
+# -----------------------------------------
+print( "\n\n");
+print( " -------------------------------------------------------\n");
+print( "                   COMPOUND                             \n");
+print( " Numerical calculation of quad-quad polarizability\n");
+print( " -------------------------------------------------------\n");
+print( " Molecule    : %s\n", molecule);
+print( " charge      : %d\n", charge);
+print( " Mult        : %d\n", mult);
+print( " Method      : %s\n", method);
+print( " Basis       : %s\n", basis);
+print( " RestOfInput : %s\n", restOfInput);
+print( " BlocksInput : %s\n", blocksInput);
+print( " The electric field perturbation used was:    %.5lf a.u.\n", E_Field);
+print( " \n\n");
+
+print( " -------------------------------------------------------\n");
+print( " Raw electric quad-quad polarizability tensor is:\n");
+print( " -------------------------------------------------------\n");
+For i from 0 to 5 Do
+  print("%13.8lf  %13.8lf  %13.8lf  %13.8lf  %13.8lf  %13.8lf\n", a[i][0], a[i][1], a[i][2], a[i][3], a[i][4], a[i][5]);
+EndFor
+print( " -------------------------------------------------------\n");
+print("\n");
+
+print( " -------------------------------------------------------\n");
+print( " Raw electric quad-quad polarizability Eigenvalues\n");
+print( " -------------------------------------------------------\n");
+print("%13.8lf  %13.8lf  %13.8lf  %13.8lf  %13.8lf  %13.8lf\n", aEigenValues[0], aEigenValues[1], aEigenValues[2],
+aEigenValues[3], aEigenValues[4], aEigenValues[5]);
+print( " -------------------------------------------------------\n");
+print("\n");
+
+print( " -------------------------------------------------------\n");
+print( " Raw electric quad-quad polarizability Eigenvectors\n");
+print( " -------------------------------------------------------\n");
+For i from 0 to 2 Do
+  print("%13.8lf  %13.8lf  %13.8lf  %13.8lf  %13.8lf  %13.8lf\n", aEigenVectors[i][0], aEigenVectors[i][1], aEigenVectors[i][2],
+   aEigenVectors[i][3], aEigenVectors[i][4], aEigenVectors[i][5]);
+EndFor
+
+print( "\n a isotropic value : %.5lf\n", (aEigenValues[0]+aEigenValues[1]+aEigenValues[2]+aEigenValues[3]+aEigenValues[4]+aEigenValues[5])/6.0);
+print( " -------------------------------------------------------\n");
+print("\n\n");
+# 
+#
+# ---------------------------------------------------
+#  Maybe remove unneccesary files
+# ---------------------------------------------------
+if (removeFiles) then
+  sys_cmd("rm *_Compound_* *.bas* ");
+EndIf
+#
+End
+

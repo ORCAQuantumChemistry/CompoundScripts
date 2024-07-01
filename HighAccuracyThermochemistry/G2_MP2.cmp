@@ -1,0 +1,176 @@
+# Authors: Dimitrios G. Liakos and Frank Neese 
+# Revised: June of 2024
+#
+# This is a compound script that implements the 
+#  G2(MP2) composite method by L. A. Curtiss et al.
+#  as described on: 
+#
+# L. A. Curtiss et al. J. Chem. Phys 104, 5148, (1996)
+#
+# 
+# In the current implementation we perform the following steps:
+#
+#  Step 1. A single point calculation with HF/6-31G(d)
+#
+#  Step 2. Based on the geometry decide if we are working with
+#          an atom or a molecule
+#
+#  Step 3. If it is a molecule do a geometry optimization and a 
+#          Frequency calculation. Get ZPEScaled
+#
+#  Step 4. If it is a molecule optimize the geometry
+#           using MP2/6-31G(d)
+#
+#  Step 5. Obtain the correlation energy using 
+#          MP2/6-311G(d,p)     (ESmallMP2)
+#
+#  Step 6. Obtain the correlation energy using
+#          MP2/6-311+G(3df,2p) (EBigMP2)
+#
+#  Step 7. Evaluate the MP2 correction (DEMP2)
+#
+#  Step 8. Obtain the total energy using  QCISD(T)/6-311G(d,p) 
+#
+#  Step 9. Calculate the HLC correction
+#
+#  Step 10 Calculate the total energy and print
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge = 0;
+Variable mult   = 1;
+Variable Scale  = 0.893;
+# -----------------  Rest of variables --------------------------
+variable ESmallMP2, EBigMP2, EQCISDT;  
+variable DEMP2;                        
+variable ZPE, ZPEScaled;        
+variable aElectrons, bElectrons;       
+variable alpha, beta, HLC;             
+variable FinalEnergy;                  
+variable isMolecule = true;
+Geometry myGeom;
+Variable nAtoms = 0;
+ 
+# ---------------------------------------------------------------
+# (Calculation 1) Do a single point HF Calculation
+# the ZPE correction from HF 
+# ---------------------------------------------------------------
+New_Step
+  ! HF 6-31G(d) VeryTightSCF
+  *xyzfile &{charge} &{mult} &{molecule}
+Step_End
+myGeom.Read();
+nAtoms = myGeom.GetNumOfAtoms();
+if (nAtoms = 1) then
+  print("We are working with an atom\n");
+  isMolecule = false;
+else
+  print("We are working with a molecule\n");
+endIf
+
+# ---------------------------------------------------------------
+# (Calculation 2) If we are working with a molecule then
+# optimize and get the ZPE correction from HF 
+# ---------------------------------------------------------------
+if (isMolecule) then
+  New_Step
+    ! HF 6-31G(d) VeryTightSCF TightOpt Freq
+  STEP_END
+  ZPE.readProperty(propertyName="THERMO_ZPE");     
+else
+  ZPE = 0.0;
+endIf
+ZPEScaled  = Scale*ZPE;         
+ 
+# ---------------------------------------------------------------
+# (Calculation 3)
+# First optimize at the MP2 level with 6-31G(d) 
+# ---------------------------------------------------------------
+if (isMolecule) then
+  New_Step
+    ! MP2 6-31G(d) TightOpt NoFrozenCore VeryTightSCF
+  STEP_END
+endIf
+ 
+# ---------------------------------------------------------------
+# (Calculation 4)
+# The MP2 correlation energy with 6-311G(d,p) 
+# ---------------------------------------------------------------
+New_Step
+  !MP2 6-311G(d,p)
+Step_End
+ESmallMP2.readProperty(propertyName="MP2_Total_Energy");
+
+# ---------------------------------------------------------------
+# (Calculation 5)
+# The MP2 correlation energy 6-311+G(3df,2p). 
+# ---------------------------------------------------------------
+New_Step
+  !MP2 6-311+G(3df,2p)
+Step_End
+EBigMP2.readProperty(propertyName="MP2_Total_Energy");
+
+# ---------------------------------------------------------------
+# Calculate the DEMP2 correction
+# ---------------------------------------------------------------
+DEMP2 = EBigMP2 - ESmallMP2 ;
+
+# ---------------------------------------------------------------
+# (Calculation 6)
+# The total QCISD(T) energy with 6-311G(d,p) 
+# ---------------------------------------------------------------
+New_Step
+  !QCISD(T) 6-311G(d,p)
+Step_End
+EQCISDT.readProperty(propertyName="MDCI_Total_Energy");
+
+# --------------------------------------------------------------
+# For HLC correction we need the number of electrons
+# --------------------------------------------------------------
+aElectrons.readProperty(propertyName="MDCI_CORR_ALPHA_ELECTRONS");
+bElectrons.readProperty(propertyName="MDCI_CORR_BETA_ELECTRONS");
+
+# --------------------------------------------------------------
+# The HLC correction. The alpha and beta values come from the
+# referenced article.  
+# --------------------------------------------------------------
+alpha = 4.81;        
+beta  = 0.19;        
+HLC   = (-alpha*bElectrons-beta*aElectrons)/1000; 
+
+# --------------------------------------------------------------
+# Finally sum all contributions
+# --------------------------------------------------------------
+FinalEnergy = EQCISDT + DEMP2 + HLC + ZPEScaled;
+
+# --------------------------------------------------------------
+# Print the results
+# --------------------------------------------------------------
+
+print("\n\n-------------------------------------------------------\n");
+print("      G2(MP2) composite method by L. A. Curtiss et al.  \n");
+print("     L. A. Curtiss et al. J. Chem. Phys 104, 5148, (1996) \n ");
+print("         E = E(QCISD(T) + DEMP2 + HLC + ZPEScaled\n");
+print("                (all energies in Hartrees)       \n");  
+print(" Molecule       :    %s\n", molecule);
+print(" Charge         :    %18d\n", charge);
+print(" Mult           :    %18d\n", mult);
+print(" Scaling Factor :    %18.3lf\n", Scale);
+print(" ZPE            :    %18.10lf\n", ZPE);
+print(" ZPEScaled      :    %18.10lf\n", ZPEScaled);
+print(" MP2 (small)    :    %18.10lf\n", ESmallMP2);
+print(" MP2 (big)      :    %18.10lf\n", EBigMP2);
+print(" DEMP2          :    %18.10lf\n", DEMP2);
+print(" QCISD(T)       :    %18.10lf\n", EQCISDT);
+print(" alpha elecs    :    %18d\n", aElectrons);
+print(" beta  elecs    :    %18d\n", bElectrons);
+print(" alpha          :    %18.3lf\n", alpha);
+print(" beta           :    %18.3lf\n", beta);
+print(" HLC            :    %18.10lf\n", HLC);
+print(" Final En       :    %18.10lf\n", FinalEnergy);
+print(" ------------------------------------------------------------\n\n");
+
+
+END
+ 

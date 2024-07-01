@@ -1,0 +1,109 @@
+# Author : Dimitrios G. Liakos and Frank Neese
+# Date   : June of 2024
+#
+# This is a three-point extrapolation scheme to the complete basis set 
+#   limit for the total electronic energy, based on:
+# 
+# 'Theoretical Estimate of the Enthalpy of Formation of HSO and 
+#  the HSO-SOH Isomerization Energy' 
+#
+#  Sotiris S. Xantheas’ and Thom H. Dunning, Jr,
+#    J . Phys. Chem. 1993, 97, 18-19.
+#
+# Almost at the same time also this publication used the same extrapolation protocol:
+#
+# 'The use of systematic sequences of wave functions for estimating 
+#   the complete basis set, full configuration interaction limit in water'
+# 
+#              David Feller, 
+#   J. Chem. Phys. 1993, 98, 7059-7071
+#
+#  The funtion that describes the convergence of the energy is used is:
+#
+#                        E(X)=E(CBS)+Bexp(-CX)
+#
+#  And using three basis sets with cardinal numbers X, X+1 and X+2 the final 
+#    equation becomes:
+#
+#              E(CBS}=[E(X+2)E(X)-E(X+1)E(X+1)]/[E(X+2)+E(X)-2E(X+1)]
+#
+#  In the current implementation we perform the following steps:
+#
+#  Step 1:  Perform a calculation with basis set with cardinal number X   (here aug-cc-pVDZ)
+# 
+#  Step 2:  Perform a calculation with basis set with cardinal number X+1 (here aug-cc-pVTZ)
+# 
+#  Step 3:  Perform a calculation with basis set with cardinal number X+2 (here aug-cc-pVQZ)
+# 
+#  Step 4: combine the energies to evaluate the CBS energy (E_CBS)
+#
+#  Step 5: Print the result
+#
+#
+#
+# NOTE 1: No empirical parameter is used here so one can change the method. Here we use 
+#         the DLPNO-CCSD(T1) method, because of its accuracy/efficiency ratio
+#
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge     = 0;
+Variable mult       = 1;
+Variable method     = "DLPNO-CCSD(T1)";
+Variable myProperty = "MDCI_Total_Energy";
+# -----------------  Rest of variables --------------------------
+variable E_DZ, E_TZ, E_QZ;  # The energies 
+variable E_CBS;             # The CBS energy
+
+# ---------------------------------------------------------------
+# (Calculation 1)
+# Double zeta calculation 
+# ---------------------------------------------------------------
+New_Step
+  !&{method} aug-cc-pVDZ aug-cc-pVDZ/C VeryTightSCF 
+  *xyzfile &{charge} &{mult} &{molecule}
+Step_End
+E_DZ.readProperty(propertyName=myProperty);     
+
+# ---------------------------------------------------------------
+# (Calculation 2)
+# Triple zeta calculation 
+# ---------------------------------------------------------------
+New_Step
+  !&{method} aug-cc-pVTZ aug-cc-pVTZ/C VeryTightSCF 
+Step_End
+E_TZ.readProperty(propertyName=myProperty);       
+
+# ---------------------------------------------------------------
+# (Calculation 3)
+# Quadruple zeta calculation 
+# ---------------------------------------------------------------
+New_Step
+  !&{method} aug-cc-pVQZ aug-cc-pVQZ/C VeryTightSCF 
+Step_End
+E_QZ.readProperty(propertyName=myProperty);     
+
+# ---------------------------------------------------------------
+# Perform the extrapolation
+# ---------------------------------------------------------------
+E_CBS = (E_QZ*E_DZ-E_TZ*E_TZ)/(E_QZ+E_DZ-2*E_TZ); 
+
+print("\n\n-------------------------------------------------------\n");
+print("           extrapolation scheme for total energies   \n");
+print("         Sotiris S. Xantheas’ and Thom H. Dunning, Jr,\n");
+print("               J . Phys. Chem. 1993, 97, 18-19.\n");
+print("                         David Feller\n"); 
+print("               J. Chem. Phys. 1993, 98, 7059-7071\n");
+print(" Molecule           : %s\n", molecule);
+print(" Charge             : %-18d\n", charge);
+print(" Mult               : %-18d\n", mult);
+print(" Method             : %s\n", method);
+print(" E(aug-cc-pVDZ)     : %-18.8lf\n", E_DZ);
+print(" E(aug-cc-pVTZ)     : %-18.8lf\n", E_TZ);
+print(" E(aug-cc-pVQZ)     : %-18.8lf\n", E_QZ);
+print(" CBS Energy         : %-18.8lf\n", E_CBS);
+print("-------------------------------------------------------\n");
+
+EndRun

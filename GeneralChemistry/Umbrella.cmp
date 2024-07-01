@@ -1,0 +1,101 @@
+# ----------------------------------------------
+# Umbrella coordinate mapping for NH3
+# Author: Frank Neese
+# ----------------------------------------------
+variable JobName = "NH3-umbrella";
+variable amin    = 50.0;
+variable amax    = 130.0;
+variable nsteps  = 21;
+Variable energies[21];
+
+Variable angle;
+Variable JobStep;
+Variable JobStep_m;
+variable step;
+
+Variable method = "BP86";
+Variable basis  = "def2-SVP def2/J";
+
+step  = 1.0*(amax-amin)/(nsteps-1);
+
+# Loop over the number of steps
+# ----------------------------
+for iang from 0 to nsteps-1 do
+  angle    = amin + iang*step;
+  JobStep  = iang+1;
+  JobStep_m= JobStep-1;
+  if (iang>0) then
+    Read_Geom(JobStep_m);
+    New_step
+      ! &{method} &{basis} TightSCF Opt
+      %base "&{JobName}.step&{JobStep}"
+      %geom constraints
+        {A 1 0 2 &{angle} C}
+        {A 1 0 3 &{angle} C}
+        {A 1 0 4 &{angle} C}
+        end
+      end
+
+    Step_End
+  else
+    New_step
+      ! &{method} &{basis} TightSCF Opt
+      %base "&{JobName}.step&{JobStep}"
+      %geom constraints
+        {A 1 0 2 &{angle} C}
+        {A 1 0 3 &{angle} C}
+        {A 1 0 4 &{angle} C}
+        end
+      end
+
+      * int 0 1
+      N 0 0 0 0.0 0.0 0.0
+      DA 1 0 0 2.0 0.0 0.0
+      H 1 2 0 1.06 &{angle} 0.0
+      H 1 2 3 1.06 &{angle} 120.0
+      H 1 2 3 1.06 &{angle} 240.0
+      *
+    Step_End
+  endif
+   energies[iang].readProperty(propertyName="SCF_ENERGY");
+   print(" index: %3d Angle %6.2lf Energy: %16.12lf Eh\n", iang, angle, energies[iang]);
+EndFor
+
+# Print a summary at the end of the calculation
+# ---------------------------------------------
+print("////////////////////////////////////////////////////////\n");
+print("// POTENTIAL ENERGY RESULT\n");
+print("////////////////////////////////////////////////////////\n");
+variable minimum,maximum;
+variable Em,E0,Ep;
+variable i0,im,ip;
+for iang from 0 to nsteps-1 do
+  angle   = amin + 1.0*iang*step;
+  JobStep = iang+1;
+  minimum = 0;
+  maximum = 0;
+  i0      = iang;
+  im      = iang-1;
+  ip      = iang+1;
+  E0      = energies[i0];
+  Em      = E0;
+  Ep      = E0;
+  if (iang>0 and iang<nsteps-1) then
+    Em = energies[im];
+    Ep = energies[ip];
+  endif
+  if (E0<Em and E0<Ep) then minimum=1; endif
+  if (E0>Em and E0>Ep) then maximum=1; endif
+  if (minimum = 1 ) then
+    print(" %3d  %6.2lf %16.12lf (-)\n",JobStep,angle, E0 );
+  endif
+  if (maximum = 1 ) then
+    print(" %3d  %6.2lf %16.12lf (+)\n",JobStep,angle, E0 );
+  endif
+  if (minimum=0 and maximum=0) then
+    print(" %3d  %6.2lf %16.12lf    \n",JobStep,angle, E0 );
+  endif
+endfor
+print("////////////////////////////////////////////////////////\n");
+
+End # end of compound block

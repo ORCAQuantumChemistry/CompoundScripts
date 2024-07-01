@@ -1,0 +1,139 @@
+# Creator: Dimitrios Manganas
+# Update : Dimitrios G. Liakos (June of 2024)
+#
+#
+# This protocol computes X-ray Absorption and X-ray Magnetic Circular Dichroism 
+#   spectra at the CASCI/NEVPT2 level
+#
+# For CASCI/NEVPT2 X-ray protocols one can check the following articles
+#
+# A. Chantzis, J. K. Kowalska, D. Maganas, S. DeBeer, F. Neese J. Chem. Theory Comput. 2018, 14, 7,
+# Ab Initio Wave Function-Based Determination of Element Specific Shifts for the Efficient 
+# Calculation of X-ray Absorption Spectra of Main Group Elements and First Row Transition Metals
+#
+# D. Maganas, J. K. Kowalska, C. V. Stappen, S. DeBeer and F. Neese: J. Chem. Phys. 152, 114107 (2020)
+# Mechanism of L2,3-edge x-ray magnetic circular dichroism intensity from quantum chemical
+# calculations and experiment-A case study on V(IV)/V(III) complexes
+#
+#
+#  In the current implementation we perform the following steps:
+#
+# Step 1. Compute initial QRO orbitals at DFT level
+#
+# Step 2. Perform an  SA-CASSCF calculation on the Valence space
+#
+# Step 3. Rotate Core orbitals in the active space. The active space is 
+#         saturated with all the single excitations from the core and 
+#         calculate various spectra at the CASCI/NEVPT2 level.
+#
+# Step 4. Call orca_mapspc and generate the XAS and XMCD *.dat and *.stk files
+#           which can be used for plotting the spectra. (Please consult the ORCA Manual)
+#
+#
+# NOTE 1: The core orbitals are introduced in the active space through the rotate function.
+#         In the example the rotated orbitals correspond to 2p core orbitals.
+#
+# NOTE 2: In the case of open shell calculations it is advantageous to turn off the magnetic 
+#         properties calculations. This is achieved by requesting 
+#         GTensor false and/or DTensor (DoDTensor) false
+#
+# NOTE 3: In spectra generation via the orca_mapspc if parallelisation has been requested (via PAL)
+#         then one has to process the *.mpix.out where x is the requested number of cores
+#
+# NOTE 4: In orca_mapspc  -x0700 -x1900 define the spectrum window range. Here we used the values 700 
+#         and 900 but they should be adjusted(Please consult the ORCA Manual for further details)
+#
+# NOTE 5: The active spaces should be adjusted for the problem at hand. Here we chose Ni2+ as an example
+#
+# NOTE 6: In the call to orca_mapspc name of the orca output should be used. In the example we use the 
+#         "test.out" name because this is the output file we created.
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule;
+Variable charge    = 0;
+Variable mult      = 1;
+Variable nel1      = 8;
+Variable nel2      = 14;
+Variable norb1     = 5;
+Variable norb2     = 8;
+Variable Mult1     = 3;
+Variable Mult2     = 1;
+Variable NRoots1   = 10;
+Variable NRoots2   = 15;
+Variable NRoots3   = 21;
+Variable NRoots4   = 26;
+Variable RunBasename = "run";              # The name of the calling orca input
+Variable DFTBasename = "DFTWavefunction";
+Variable CASBasename = "CASWavefunction";
+
+# ------------------------------------------------------
+# Creation of orbitals (DFT-MOs/QROs)
+# ------------------------------------------------------
+New_Step
+  !BP86 DKH2 DKH-def2-SVP def2/J UNO 
+  *xyzfile &{charge} &{mult} &{molecule}
+  %base "&{DFTBasename}"
+Step_End
+
+# ------------------------------------------------------
+# Creation of orbitals (SA-CASSCF)
+# ------------------------------------------------------
+New_Step
+  !MOREAD DKH2 DKH-def2-SVP def2-SVP/C
+  % base "&{CASBasename}"
+  %MOInp "&{DFTBasename}.qro"
+  %CASSCF
+    NEl    &{nel1} 
+    NOrb   &{norb1} 
+    Mult   &{Mult1},&{Mult2} 
+    NRoots &{NRoots1}, &{NRoots2}
+    Maxiter 200
+  End
+Step_End
+
+# ------------------------------------------------------
+#  Actual calculation of CASCI/NEVPT2 XAS/XMCD spectra
+# ------------------------------------------------------
+New_Step
+  !MOREAD DKH2 DKH-def2-SVP def2-SVP/C NEVPT2   
+  %MOInp "&{CASBasename}.gbw"
+  %rel
+    FiniteNuc true
+  End
+  %Method 
+    FrozenCore FC_NONE 
+  End
+  %SCF
+    Rotate 
+      {2,6,90}
+      {3,7,90}
+      {4,8,90}
+    End
+  End
+  %CASSCF
+    NEl      &{nel2}
+    NOrb     &{norb2}
+    Mult     &{Mult1}, &{Mult2}
+    NRoots   &{NRoots3}, &{NRoots4}
+    MaxIter  1
+    nevpt2   True
+    Rel
+      DoSOC   True
+      GTensor False
+      DTensor False
+      DoMCD   True
+      B=60000
+      Temperature 4
+      PrintLevel 3
+    End
+  End
+Step_End
+#
+# ------------------------------------------------------
+#  Use mapspc to calculate spectra
+# ------------------------------------------------------
+SYS_CMD("orca_mapspc %s.out SOCABS -x0700 -x1900 -w0.5 -eV -n10000 ", RunBasename);
+SYS_CMD("orca_mapspc %s_Compound_3.NEVPT2-el.dipole-length.1.mcd MCD -x0700 -x1900 -w0.5 -eV -n10000 ", RunBasename); 
+End 

@@ -1,0 +1,268 @@
+# Creator: Ahmet Altun
+#
+# *************************************** DESCRIPTION ****************************************************************
+# This script is for the calculation of DLPNO-CCSD(T1)/CPS(6/7)/CBS(3/4) energies, shown as the gold
+# standard [1] of the DLPNO-CC theory. With this script, the energies obtained with simultaneous application
+# of CPS and CBS extrapolations, which are both essential in obtaining benchmark quality results, are obtained.
+# 
+# Complete PNO space (CPS) extrapolation [2] addressess the error introduced in the correlation energy
+# upon the truncation of the virtual space in local methods for a given basis set. Herein CPS(x/y) denotes 
+# two-point CPS extrapolation of the DLPNO-CCSD(T)/TightPNO energies obtained for a given basis set with two 
+# different TCutPNO  values of the form TCutPNO = a*10^(-x) and TCutPNO = a*10^(-y), where "a" is a constant 
+# and must be taken as the same for both calculations (in the present case, a = 1);  and the exponents 
+# "x" and "y" are consecutive (y = x + 1; in the present case, x = 6 and y = 7). Once correlation energies 
+# E_x and E_y are obtained with two different TCutPNO values satisfying the above conditions, CPS-extrapolated 
+# correlation energy E_CPS can be obtained with the following simple extrapolation formula.
+#
+# 				E_CPS = E_x + F_CPS*(E_y - E_x)
+# 
+# where F_CPS is a constant. Its optimal value was found [2] as 1.5, on a wide range of diverse reactions in 
+# GMTKN55 benchmark set. Therefore, the use of a different F value is not suggested. CPS(6/7) provide 
+# benchmark accuracy (i.e., sub-kJ/mol accuracy) on the GMTKN55 superset [2] and retains this accuracy 
+# also for large systems [3].      
+#
+# Complete Basis Set (CBS) extrapolation addressess basis set incompleteness error of the energies computed 
+# with an electronic structure method. Herein CBS(X/Y) denotes two-point CBS extrapolation of the 
+# DLPNO-CCSD(T)/TightPNO energies obtained with two different basis sets of consecutive cardinal numbers, 
+# i.e., X and Y, where Y = X +1. When the functional form of the reference [4] and correlation [5] energies are 
+# taken as 
+# 
+#                         E(0)_X = E(0)_CBS + A*exp(-alpha*sqrt(X))
+#                           E(corr)_X = E(corr)_CBS + B*X^(-beta)
+# 
+# one obtains CBS-extrapolated reference (E(0)_CBS) and correlation (E(corr)_CBS) energies in a compact form [2] as
+#
+# 			  E(0)_CBS = E(0)_X + F_0*(E(0)_Y - E(0)_X)
+# 		   E(corr)_CBS = E(corr)_X + F_corr*(E(corr)_Y - E(corr)_X)
+#
+# where
+#               F_0 = exp(alpha*sqrt(Y)) / [exp(alpha*sqrt(Y)) - exp(alpha*sqrt(X))]
+#                             F_corr = Y^(beta) / Y^(beta) - X^(beta)
+#
+# The alpha and beta exponents [6] and the corresponding F values are tabulated below for the conveinence
+# for different basis set combinations most commonly used.
+# 
+#                                        Reference Energy         Correlation Energy                                       
+#                                        alpha        F_0          beta        F_corr
+#                                       ----------------------------------------------
+#	(aug-)cc-pVnZ     CBS(2/3)        4.42   1.325216          2.46      1.584336
+#	                  CBS(3/4)        5.46   1.301304          3.05      1.711889
+#
+#       def2-n(Z)VP       CBS(2/3)       10.39   1.038203          2.40      1.607468       
+#       		  CBS(3/4)        7.88   1.137739          2.97      1.740740
+#
+# Herein we perform CBS(3/4) extrapolation for both reference and correlation energies with aug-cc-pVXZ (X = T and Q).
+# The CBS extrapolated energy of the system is then equal to
+#
+# 			     E_Total_CBS = E(0)_CBS + E(corr)_CBS
+#
+# CBS(3/4) extrapolation of the correlation energy is performed for the calculations not only with TCutPNO = 10^-6 
+# but also with TCutPNO = 10^-7. Then, the two sets of CBS-extrapolated values were extrapolated for CPS limit.
+# CPS(6/7) correlation energies are provided also for individual basis sets. Since CBS and CPS extrapolation formulas
+# are linear equations, the order of applying the extrapolation schemes (CBS first, or CPS first) does not have any 
+# influence on the final results.   
+# 
+# *************************************** LITERATURE  ****************************************************************
+#
+#[1] Altun, A.; Neese, F.; Bistoni, F. JCTC, 2022, 18, 2292-2307
+#[2] Altun, A.; Neese, F.; Bistoni, F. JCTC, 2020, 16, 6142-6149
+#[3] Altun, A.; Ghosh, S.; Riplinger, C.; Neese, F.; Bistoni, F. J. Phys. Chem. A 2021, 125, 45, 9932-9939
+#[4] Zhong, S.; Barnes, E.C.; Petersson, G.A. J. Chem. Phys. 2008, 129, 184116 
+#[5] Helgaker, T.; Klopper, W.; Koch, H. J. Chem. Phys. 1997, 106, 9639
+#[6] Neese, F.; Valeev, E.F. JCTC, 2011, 7, 33-43
+#
+# ******************************************  METHOD   ***************************************************************
+#
+#
+#Define some variables
+#Loose corresponds to the larger TCutPNO value while Tight corresponds to the smaller TCutPNO value.
+#X and Y correspond to the smaller and larger basis sets, respectively.
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable  molecule;
+Variable  charge   = 0;
+Variable  mult     = 1;
+Variable  Small_BS="aug-cc-pVTZ";  # The smaller basis set used in the extrapolation
+Variable  Large_BS="aug-cc-pVQZ";  # The larger basis set used in the extrapolation
+Variable  CBS="CBS(3/4)";          # CBS-extrapolated result
+Variable  F_CPS = 1.5;             # The constant used in CPS extrapolation
+# The parameters for CBS(3/4) with aug-cc-pVnZ (n = T and Q) 
+variable  X      = 3;              # Cardinal number for small basis set (Triple zeta)
+Variable  Y      = 4;              # Cardinal number for big basis set (Quadruple zeta)
+Variable  F_0    = 1.301304;       # Constant use in CBS extrapolation (see the table in the DESCRIPTION section)
+Variable  F_corr = 1.711889;       # Constant use in CBS extrapolation (see the table in the DESCRIPTION section)
+# -----------------  Rest of variables --------------------------
+Variable  E0_X, E0_Y;              # The reference energies
+Variable  E_corr_X_Loose;          # The correlation energy for X_Loose setting 
+Variable  E_corr_X_Tight;          # The correlation energy for X_Tight setting
+Variable  E_corr_X;                # The CPS extrapolated correlation energy for basis set with X
+Variable  E_corr_Y_Loose;          # The correlation energy for Y_Loose setting
+Variable  E_corr_Y_Tight;          # The correlation energy for Y_Tight setting
+Variable  E_corr_Y;                # The CPS extrapolated correlation energy for basis set with Y
+Variable  E0_CBS;                  # The CBS extrapolated SCF energy
+Variable  E_corr_CBS_Loose;        # The CBS extrapolated correlation energy for looser TCutPNO
+Variable  E_corr_CBS_Tight;        # The CBS extrapolated correlation energy for tighter TCutPNO
+Variable  E_corr_CBS_CPS;          # The CBS and CPS extrapolated correlation energy  
+Variable  E_Total_X_Loose;         # The total energy for X_Loose setting
+Variable  E_Total_Y_Loose;         # The total energy for Y_Loose setting
+Variable  E_Total_Loose_CBS;       # The CBS extrapolated total energy for looser TCutPNO
+Variable  E_Total_X_Tight;         # The total energy for X_Tight setting
+Variable  E_Total_Y_Tight;         # The total energy for Y_Tight setting
+Variable  E_Total_Tight_CBS;       # The CBS extrapolated total energy for tighter TCutPNO
+Variable  E_Total_X_CPS;           # The total CPS extrapolated energy for the small basis set
+Variable  E_Total_Y_CPS;           # The total CPS extrapolated energy for the small basis set
+Variable  E_Total_CBS_CPS;         # The CBS and CPS extrapolated total energy
+#
+#
+# ------------------------------------------------------------------------------
+# Calculation with the small basis set and looser TCutPNO
+# (Calculation 1)
+# ------------------------------------------------------------------------------
+New_Step
+  !DLPNO-CCSD(T1) &{Small_BS} aug-cc-pVQZ/C VeryTightSCF TightPNO
+  *xyzfile &{charge} &{mult} &{molecule}
+  %MDCI 
+    TCutPNO 1e-6 
+    Printlevel 3 
+  End
+  %BASIS 
+    auxc "autoaux" 
+    autoauxlmax true 
+  End
+# Here autoaux module is used. If wanted to use the standard "/C" basis specified 
+# in the simple input line instead, take the %BASIS block in the comment for all 
+# caculations, i.e., Calculations 1 - 4. 
+Step_End
+#Read the values
+E0_X.readProperty(propertyName="MDCI_REF_ENERGY");   
+E_corr_X_Loose.readProperty(propertyName="MDCI_CORR_ENERGY");  
+#
+#
+# ------------------------------------------------------------------------------
+#Calculation with the small basis set and tighter TCutPNO
+#(Calculation 2)
+# ------------------------------------------------------------------------------
+New_Step
+  !DLPNO-CCSD(T1) &{Small_BS} aug-cc-pVQZ/C VeryTightSCF TightPNO
+  %MDCI 
+    TCutPNO 1e-7 
+    Printlevel 3
+   End
+  %BASIS 
+    auxc "autoaux" 
+    autoauxlmax true 
+  End
+Step_End
+#Read the values
+E_corr_X_Tight.readProperty(propertyName="MDCI_CORR_ENERGY"); 
+#
+#
+# ------------------------------------------------------------------------------
+#Calculation with the large basis set and looser TCutPNO
+#(Calculation 3)
+# ------------------------------------------------------------------------------
+New_Step
+  !DLPNO-CCSD(T1) &{Large_BS}  aug-cc-pV5Z/C VeryTightSCF TightPNO
+  %MDCI 
+    TCutPNO 1e-6 
+    printlevel 3 
+  END
+  %BASIS
+     auxc "autoaux"
+     autoauxlmax true 
+  End
+Step_End
+#Read the values
+E0_Y.readProperty(propertyName="MDCI_REF_ENERGY");
+E_corr_Y_Loose.readProperty(propertyName="MDCI_CORR_ENERGY");
+#
+#
+# ------------------------------------------------------------------------------
+#Calculation with the large basis set and tighter TCutPNO
+#(Calculation 4)
+# ------------------------------------------------------------------------------
+New_Step
+!DLPNO-CCSD(T1) &{Large_BS} aug-cc-pV5Z/C VeryTightSCF TightPNO
+  %MDCI
+    TCutPNO 1e-7 
+    Printlevel 3
+  End
+  %BASIS
+     auxc "autoaux"
+     autoauxlmax true 
+  End
+Step_End
+#Read the values
+E_corr_Y_Tight.readProperty(propertyName="MDCI_CORR_ENERGY");
+#
+#
+# ------------------------------------------------------------------------------
+#
+#CBS extrapolation of the reference energy
+E0_CBS = E0_X + F_0*(E0_Y - E0_X);    
+#
+#CPS extrapolation of the correlation energy for the small basis set
+E_corr_X = E_corr_X_Loose + F_CPS*(E_corr_X_Tight - E_corr_X_Loose);
+#
+#CPS extrapolation of the correlation energy for the large basis set
+E_corr_Y = E_corr_Y_Loose + F_CPS*(E_corr_Y_Tight - E_corr_Y_Loose);
+#
+#CBS extrapolation of the correlation energy with looser TCutPNO
+E_corr_CBS_Loose = E_corr_X_Loose + F_corr*(E_corr_Y_Loose - E_corr_X_Loose);
+#
+#CBS extrapolation of the correlation energy with tighter TCutPNO
+E_corr_CBS_Tight = E_corr_X_Tight + F_corr*(E_corr_Y_Tight - E_corr_X_Tight);
+#
+#CBS and CPS Extrapolated correlation energy
+E_corr_CBS_CPS = E_corr_CBS_Loose + F_CPS*(E_corr_CBS_Tight - E_corr_CBS_Loose);  
+#
+# Total energy for X_Loose setting
+E_Total_X_Loose = E0_X + E_corr_X_Loose;
+#
+# Total energy for Y_Loose setting
+E_Total_Y_Loose = E0_Y + E_corr_Y_Loose;
+#
+#CBS extrapolated total energy for looser TCutPNO
+E_Total_Loose_CBS = E0_CBS + E_corr_CBS_Loose;
+#
+# Total energy for X_Tight setting
+E_Total_X_Tight = E0_X + E_corr_X_Tight;
+#
+# Total energy for Y_Tight setting
+E_Total_Y_Tight = E0_Y + E_corr_Y_Tight;
+#
+#CBS extrapolated total energy for tighter TCutPNO
+E_Total_Tight_CBS = E0_CBS + E_corr_CBS_Tight;
+#
+#CPS extrapolated total energy for small basis set
+E_Total_X_CPS = E0_X + E_corr_X;
+#
+#CPS extrapolated total energy for large basis set
+E_Total_Y_CPS = E0_Y + E_corr_Y;
+#
+#CBS and CPS extrapolated total energy for the small basis set 
+E_Total_CBS_CPS = E0_CBS + E_corr_CBS_CPS;          
+#
+print("\n\n================================================================================\n");
+print("=========================== SUMMARY OF ENERGIES (Eh) ===========================\n");
+print("================================================================================\n\n");
+print(" Molecule                :    %s\n", molecule);
+print(" Charge                  :    %18d\n", charge);
+print(" Mult                    :    %18d\n", mult);
+print("%33s %21s %21s \n", Small_BS, Large_BS, CBS);
+print("                      -----------           -----------           -----------\n");
+print("SCF Energy %22lf %21lf %21lf \n", E0_X, E0_Y, E0_CBS);
+print("-----------\n\n");
+print("Correlation Energy \n------------------- \n");
+print("TCutPNO = 1e-6 %18.8lf %21.8lf %21.8lf \n", E_corr_X_Loose, E_corr_Y_Loose, E_corr_CBS_Loose);
+print("TCutPNO = 1e-7 %18.8lf %21.8lf %21.8lf \n", E_corr_X_Tight, E_corr_Y_Tight, E_corr_CBS_Tight);
+print("CPS(6/7) %24.8lf %21.8lf %21.8lf \n\n", E_corr_X, E_corr_Y, E_corr_CBS_CPS);
+print("Total Energy \n------------- \n");
+print("TCutPNO = 1e-6 %18.8lf %21.8lf %21.8lf \n", E_Total_X_Loose, E_Total_Y_Loose, E_Total_Loose_CBS);
+print("TCutPNO = 1e-7 %18.8lf %21.8lf %21.8lf \n", E_Total_X_Tight, E_Total_Y_Tight, E_Total_Tight_CBS);
+print("CPS(6/7) %24.8lf %21.8lf %21.8lf \n\n", E_Total_X_CPS, E_Total_Y_CPS, E_Total_CBS_CPS);
+#
+#Final end
+End
+#

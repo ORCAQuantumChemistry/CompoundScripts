@@ -1,5 +1,6 @@
-# Name: dft-solvation-energy
-#
+# Creator: Miquel Garcia-Rates
+# Update : Dimitrios G. Liakos (June of 2024)
+##
 # This protocol computes the solvation energy in a solvent.
 #
 # For a reference to the methodology please refer to:
@@ -42,56 +43,77 @@
 # NOTE 7: In this calculation  we use the correction from S. Grimme and for this reason we also add
 #         explicitly this correction both on vacuum and solvent.
 #
-# First define some variables:
-Variable E_vac, E_solv;             # Total energies in vacuum and solvent
-Variable ZPE_vac, ZPE_solv;         # Zero point energies
-Variable vdw_vac, vdw_solv;         # van der Waals correction
-Variable HartToKcal;                # Conversion factor from Hartree to kcal/mol
-Variable DE_El_Hartree, DE_El_Kcal; # Solvation energies in Harrtee and kcal/mol
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+variable molecule;
+variable charge        = 0;
+variable mult          = 1;
+Variable method        = "RKS B3LYP RIJCOSX D3BJ";
+Variable basis         = "def2-TZVP def2/J";
+Variable restOfInput   = "defGrid3 VeryTightSCF VeryTightOpt";
+Variable mySolvent     = "water";
+# -----------------  Rest of variables --------------------------
+Variable E_vac, E_solv;                   # Total energies in vacuum and solvent
+Variable ZPE_vac, ZPE_solv;               # Zero point energies
+Variable vdw_vac, vdw_solv;               # van der Waals correction
+Variable HartToKcal = 627.5096080305927;  # Conversion factor from Hartree to kcal/mol
+Variable DE_El_Hartree, DE_El_Kcal;       # Solvation energies in Harrtee and kcal/mol
 #
+# ----------------------------------------------------------------
 # Optimization in vacuum
-# (Calculation 1)
+# ----------------------------------------------------------------
 New_Step
-  !RKS B3LYP RIJCOSX def2-TZVP def2/J D3BJ defGrid3 verytightscf verytightopt
+  !&{method} &{basis} &{restOfInput} 
+  *xyzfile &{charge} &{mult} &{molecule}
   %base "vacuumGeometry" 
 Step_End
-Read E_vac = SCF_ENERGY[1];         
-Read vdw_vac = VDW_CORRECTION[1];   
+E_vac.readProperty(propertyName="SCF_ENERGY");         
+vdw_vac.readProperty(propertyName="VDW_CORRECTION");   
 #
-# Second step: Optimization in solvent
-# (Calculation 2)
+#
+# ----------------------------------------------------------------
+# Optimization in solvent
+# ----------------------------------------------------------------
 New_Step
-  !RKS B3LYP RIJCOSX def2-TZVP def2/J D3BJ defGrid3 verytightscf verytightopt CPCM(water)
-  * xyzfile 0 1 vacuumGeometry.xyz
+  !&{method} &{basis} CPCM(&{mySolvent})
+  * xyzfile &{charge} &{mult} vacuumGeometry.xyz
   %cpcm
     surfacetype vdw_gaussian
   End
 STEP_END
-Read E_solv = SCF_ENERGY[2];        
-Read vdw_solv = VDW_CORRECTION[2];  
+E_solv.readProperty(propertyName="SCF_ENERGY");        
+vdw_solv.readProperty(propertyName="VDW_CORRECTION");  
 #
+#
+# ----------------------------------------------------------------
 # Now evaluate the difference
-HartToKcal = 627.5096080305927;   
+# ----------------------------------------------------------------
 DE_El_Hartree  = E_solv +vdw_solv - E_vac - vdw_vac;  
 DE_El_Kcal     = HartToKcal*DE_El_Hartree ; 
 #
 # ****************** ADD SOME NICE PRINTING ***********************
-print( "  $$$$$$$$$$$$$$$$$$$$$$$$$$$$ COMPOUND JOB RESULTS $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ ")
-print( "  Free energy in vacuum: ")
-print( "  ================== ")
-print( "  Electronic Energy in Vacuum  [Eh] ")
-print( "  = %f", E_vac) 
+print( "  $$$$$$$$$$$$$$$$$$$$$$$$$$$$ COMPOUND JOB RESULTS $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ \n");
+print(" Molecule                : %s\n", molecule);
+print(" Charge                  : %-18d\n", charge);
+print(" Mult                    : %-18d\n", mult);
+print(" Method                  : %s\n", method);
+print(" Basis set               : %s\n", basis);
+print(" Rest of input           : %s\n", restOfInput);
+print(" Solvent                 : %s\n", mySolvent);
+print( "  Free energy in vacuum:\n ");
+print( "  ================== \n");
+print( "  Electronic Energy in Vacuum [Eh]:         %18.10lf\n", E_vac); 
 #
-print( "  Free energy in solution:")
-print( "  ==================")
-print( "  Electronic Energy in Solution [Eh]")
-print( "  = %f", E_solv) 
+print( "  Free energy in solution:\n");
+print( "  ==================\n");
+print( "  Electronic Energy in Solution [Eh]:       %18.10lf\n", E_solv); 
 
-print( "  Solvation Energy:")
-print( "  ==================")
-print( "  Electronic Energy contribution [kca/mol]")
-print( "  = %f", DE_El_Kcal) 
+print( "  Solvation Energy:\n");
+print( "  ==================\n");
+print( "  Electronic Energy contribution [kca/mol]: %18.10lf\n", DE_El_Kcal); 
 #
-print( "  -----------------------------------------------------------------------------------------------------")
-print( "  $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ END $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ ")
-End
+print( "  -----------------------------------------------------------------------------------------------------\n");
+print( "  $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ END $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ \n");
+
+
+EndRun

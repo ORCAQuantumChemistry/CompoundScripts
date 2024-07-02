@@ -1,0 +1,324 @@
+#   Author: Dimitrios G. Liakos and Frank Neese
+#   Date  : May of 2024
+#
+#   This is a compound file that extrapolates the
+#   energy gradients to Complete Basis Set Limit (CBS).
+#
+#   STEPS:
+#   Step1 : Run HF calculation with small basis set
+#          Read scfGradX and scfEnX
+#   Step2 : Run Correlation calculation with small basis set
+#          Read totalGradX and totalEnX
+#   Step3 : Calculate the gradient differene to get
+#          the corrGradX (only the correlation part)
+#   Step4 : Run HF calculation with big basis set
+#          Read scfGradY and scfEnY
+#   Step5 : Run correlation calculation with big basis set
+#          Read totalGradY and totalEnY
+#   Step6 : Calculate the gradient difference with the
+#          big basis set to get corrGradY
+#   Step7 : Evaluate scfGradCBS and scfEnCBS
+#          using scfGradX and scfGradY
+#   Step8 : Evaluate corrGradCBS using 
+#          corrGradX and corrGradY
+#   Step9 : Add scfGradCBS and corrGradCBS to get
+#          totalGradCBS
+#   Step10: If needed, create an ORCA engrad file
+#
+#
+#   NOTE: It works with an xyz file the name of which we should provide.
+#         using the variable initialXYZFilename.
+#
+#   We extrapolate the SCF part using the scheme 
+#     proposed in: J. Phys. Chem. 129, 184116, 2008
+#       E_SCF(X) = E_SCF(CBS)+Aexp(-a*SQRT(X))
+#
+#   We extrapolate the correlation part using the schem 
+#     proposed in: J. Chem. Phys. 1997, 106, 9639
+#   E_CBS(CORR)=(X^b*E_X(CORR)-Y^b*E_Y(CORR))/(X^b-Y^b)
+
+#   We use alpha and beta exponents proposed in:
+#     J. Chem. Theory Comput., 7, 33-43 (2011)
+# ----------------------    Variables    -------------------------------
+# --- Variables to be adjusted (e.g. using 'with' ----------------------
+Variable Molecule           = "initial.xyz";   # xyz file of the initial structure
+Variable charge             = 0;               # Charge
+Variable multiplicity       = 1;               # Spin multiplicity
+Variable method             = "MP2";           # The method we use for the calculation
+Variable LowerBasis         = "cc-pVDZ";       # Small basis set
+Variable UpperBasis         = "cc-pVTZ";       # Big basis set
+Variable restOfInput        = "EnGrad ";       # The rest of the simple input
+Variable addCorrelation     = true;            # If we have a correlation part
+Variable scfEnPropName      = "MP2_Ref_Energy";  # The name of the property for the SCFenergy
+Variable corrEnPropName     = "MP2_Corr_Energy"; # The name of the property for the correlation energy
+Variable LowerCardinal      = 2;               # Cardinal number of small basis set
+Variable UpperCardinal      = 3;               # Cardinal number of big basis set
+Variable alpha              = 4.420;           # Exponent for SCF extrapolation
+Variable beta               = 2.460;           # Exponent for corrleation extrapolation
+Variable enGradFilename     = "result.engrad"; # Filename of the ORCA engrad file
+Variable produceEnGradFile  = true;            # Produce an ORCA engrad file   
+# ---------------------------------------------------------------------
+# -------------- Rest of the variables --------------------------------
+Geometry myGeom;
+Variable scfGradX, scfGradY;                   # SCF Gradients
+Variable scfEnX, scfEnY, scfEnCBS;             # SCF energies
+Variable corrEnX, corrEnY, corrEnCBS;          # Correlation enegies
+Variable totalGradX, totalGradY;               # Total Gradients
+Variable eX = 0.0;
+Variable eY = 0.0;
+Variable res = -1;
+
+Variable denominator = 0.0;
+Variable gradX = 0.0, gradY = 0.0, gradCBS=0.0;
+Variable nAtoms = 0;
+Variable EnGradFile;
+Variable Cartesians, AtomicNumbers;
+
+# -------------------------------------------------------------------
+# Step 1. SCF Calculation with small basis set (X)
+# -------------------------------------------------------------------
+New_Step
+  ! HF &{LowerBasis} &{restOfInput}
+  *xyzfile &{charge} &{multiplicity} &{Molecule}
+Step_end
+res = scfEnX.readProperty(propertyName="SCF_Energy");
+res = scfGradX.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
+myGeom.Read();
+nAtoms = myGeom.GetNumOfAtoms();
+
+# ------------------------------------------------------------------
+# Step 2. Initialize rest of the variables
+# ------------------------------------------------------------------
+Variable corrGradX[3*nAtoms];   # Correlation part of gradient with basis X
+Variable corrGradY[3*nAtoms];   # Correlation part of gradient with basis Y
+Variable corrGradCBS[3*nAtoms]; # CBS estimation of correlation part of the gradient                            
+Variable scfGradCBS[3*nAtoms];  # CBS estimation of SCF part of the gradient 
+Variable totalGradCBS[3*nAtoms];# CBS estimation of total gradient
+
+# -------------------------------------------------
+# Step3. Correlation Calculation with small basis set (X)
+# -------------------------------------------------
+if (addCorrelation) then
+  New_Step
+    ! &{method} &{LowerBasis} &{restOfInput}
+  Step_end
+  res = scfEnX.readProperty(propertyName=scfEnPropName);
+  res = corrEnX.readProperty(propertyName=corrEnPropName);
+  res = totalGradX.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
+
+  # -------------------------------------------------
+  # Evaluate correlation gradient with small basis set (X)
+  # -------------------------------------------------
+  corrGradX =mat_p_mat(1, totalGradX, -1, scfGradX);
+EndIf
+
+# -------------------------------------------------
+# Step4. SCF Calculation with large basis set (Y)
+# -------------------------------------------------
+New_Step
+  !HF &{UpperBasis} &{restOfInput}
+Step_End
+res = scfEnY.readProperty(propertyName="SCF_Energy");
+res = scfGradY.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
+
+# -------------------------------------------------
+# Step5. Correlation calculation with large basis set (Y)
+# -------------------------------------------------
+if (addCorrelation) then
+  New_Step
+    ! &{method} &{UpperBasis} &{restOfInput}
+  Step_end
+  res = scfEnY.readProperty(propertyName=scfEnPropName);
+  res = corrEnY.readProperty(propertyName=corrEnPropName);
+  res = totalGradY.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
+
+  # -------------------------------------------------
+  # Evaluate correlation gradient with big basis set Y
+  # -------------------------------------------------
+  corrGradY = mat_p_mat(1, totalGradY, -1, scfGradY);
+EndIf
+
+# -------------------------------------------------
+# Step6. Extrapolate the SCF part of the gradient and energy
+# -------------------------------------------------
+eX               = exp(-alpha * sqrt(LowerCardinal));
+eY               = exp(-alpha * sqrt(UpperCardinal));
+denominator      = eY-eX;
+
+scfEnCBS    = (scfEnX*eY - scfEnY*eX)/(eY-eX);
+for i from 0 to scfGradX.GetSize()-1 Do
+  gradX = scfGradX[i];
+  gradY = scfGradY[i];
+
+  scfGradCBS[i]  = (gradX * eY - gradY * eX)/denominator;
+endFor
+
+if (addCorrelation) then
+  # -------------------------------------------------
+  # Step7. Extrapolate the correlation part of the gradient and energy
+  # -------------------------------------------------
+  denominator = LowerCardinal^(beta)-(UpperCardinal)^(beta);
+
+  corrEnCBS =  (LowerCardinal^(beta)*corrEnX-(UpperCardinal)^(beta)*corrEnY)/denominator;
+  for i from 0 to scfGradX.GetSize()-1 Do
+    gradX = corrGradX[i];
+    gradY = corrGradY[i];
+
+    corrGradCBS[i] = (LowerCardinal^(beta)*gradX-(UpperCardinal)^(beta)*gradY)/denominator;
+  endFor
+
+  # -------------------------------------------------
+  # Add SCF and correlation part to get total CBS extrapolated values
+  # -------------------------------------------------
+  totalGradCBS = mat_p_mat( 1, scfGradCBS, 1, corrGradCBS);
+EndIf
+
+
+# -------------------------------------------------
+# Step8. Present the results
+# -------------------------------------------------
+print( "\n\n\n");
+print( "--------------------------------------------------------\n");
+print( "             Compound Extrapolation of Gradient         \n");
+print( "--------------------------------------------------------\n");
+print( "Number of atoms       : %d\n", nAtoms);
+print( "Lower basis set       : %s\n", LowerBasis);
+print( "Upper basis set       : %s\n", UpperBasis);
+print( "Alpha                 : %.2lf\n", alpha);
+print( "Beta                  : %.2lf\n", beta);
+print( "Lower Cardinal number : %d\n", LowerCardinal);
+print( "Upper Cardinal number : %d\n", UpperCardinal);
+print( "Method                : %s\n", method); 
+print( "AddCorrelation        : %s\n", AddCorrelation.GetString());
+print( "Produce EnGrad File   : %s\n", produceEnGradFile.GetString());
+print( "\n\n");
+print( "SCF Energy with small basis set         : %.12e\n", scfEnX);
+print( "SCF Energy with big basis set           : %.12e\n", scfEnY);
+print( "Extrapolated SCF energy                 : %.12e\n", scfEnCBS);
+print("\n\n");
+if (addCorrelation) then
+  print( "Correlation Energy with small basis set : %.12e\n", corrEnX);
+  print( "Correlation Energy with big basis set   : %.12e\n", corrEnY);
+  print( "Extrapolated correlation  energy        : %.12e\n", corrEnCBS);
+  print("\n\n");
+  print( "Total Energy with small basis set : %.12e\n", scfEnX   + corrEnX);
+  print( "Total Energy with big basis set   : %.12e\n", scfEnY   + corrEnY);
+  print( "Extrapolated Total energy         : %.12e\n", scfEnCBS + corrEnCBS);
+  print("\n\n");
+else
+  print( "Total Energy with small basis set : %.12e\n", scfEnX);
+  print( "Total Energy with big basis set   : %.12e\n", scfEnY);
+  print( "Extrapolated Total energy         : %.12e\n", scfEnCBS);
+  print("\n\n");
+EndIf
+
+print( "----------------------------------------------------------------\n");
+print( "SCF Gradient with basis set: %s\n", LowerBasis );
+print( "----------------------------------------------------------------\n");
+print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z"); 
+for i from 0 to nAtoms-1 Do
+  print("%4d     %20lf     %20lf     %20lf\n", i, scfGradX[3*i], scfGradX[3*i+1], scfGradX[3*i+2]);
+EndFor
+if (addCorrelation) then
+  print( "----------------------------------------------------------------\n");
+  print( "Correlation Gradient with basis set: %s\n", LowerBasis );
+  print( "----------------------------------------------------------------\n");
+  print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+  for i from 0 to nAtoms-1 Do
+    print("%4d     %20lf     %20lf     %20lf\n", i, corrGradX[3*i], corrGradX[3*i+1], corrGradX[3*i+2]);
+  EndFor
+
+  print( "----------------------------------------------------------------\n");
+  print( "Total Gradient with basis set: %s\n", LowerBasis );
+  print( "----------------------------------------------------------------\n");
+  print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+  for i from 0 to nAtoms-1 Do
+    print("%4d     %20lf     %20lf     %20lf\n", i, totalGradX[3*i], totalGradX[3*i+1], totalGradX[3*i+2]);
+  EndFor
+EndIf
+
+print( "----------------------------------------------------------------\n");
+print( "SCF Gradient with basis set: %s\n", UpperBasis );
+print( "----------------------------------------------------------------\n");
+print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+for i from 0 to nAtoms-1 Do
+  print("%4d     %20lf     %20lf     %20lf\n", i, scfGradY[3*i], scfGradY[3*i+1], scfGradY[3*i+2]);
+EndFor
+
+if (addCorrelation) then
+  print( "----------------------------------------------------------------\n");
+  print( "Correlation gradient with basis set: %s\n", UpperBasis );
+  print( "----------------------------------------------------------------\n");
+  print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+  for i from 0 to nAtoms-1 Do
+    print("%4d     %20lf     %20lf     %20lf\n", i, corrGradY[3*i], corrGradY[3*i+1], corrGradY[3*i+2]);
+  EndFor
+  print( "----------------------------------------------------------------\n");
+  print( "Total Gradient with basis set: %s\n", UpperBasis );
+  print( "----------------------------------------------------------------\n");
+  print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+  for i from 0 to nAtoms-1 Do
+    print("%4d     %20lf     %20lf     %20lf\n", i, totalGradY[3*i], totalGradY[3*i+1], totalGradY[3*i+2]);
+  EndFor 
+EndIf
+
+print( "----------------------------------------------------------------\n");
+print( "Extrapolated SCF part of the Gradient:\n" );
+print( "----------------------------------------------------------------\n");
+print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+for i from 0 to nAtoms-1 Do
+  print("%4d     %20lf     %20lf     %20lf\n", i, scfGradCBS[3*i], scfGradCBS[3*i+1], scfGradCBS[3*i+2]);
+EndFor
+
+if (addCorrelation) then
+  print( "----------------------------------------------------------------\n");
+  print( "Correlation Gradient with basis set:\n" );
+  print( "----------------------------------------------------------------\n");
+  print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+  for i from 0 to nAtoms-1 Do
+    print("%4d     %20lf     %20lf     %20lf\n", i, corrGradCBS[3*i], corrGradCBS[3*i+1], corrGradCBS[3*i+2]);
+  EndFor
+  print( "----------------------------------------------------------------\n");
+  print( "Total Gradient with basis set:\n" );
+  print( "----------------------------------------------------------------\n");
+  print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
+  for i from 0 to nAtoms-1 Do
+    print("%4d     %20lf     %20lf     %20lf\n", i, totalGradCBS[3*i], totalGradCBS[3*i+1], totalGradCBS[3*i+2]);
+  EndFor
+EndIf
+print( "----------------------------------------------------------------\n");
+
+
+if (produceEnGradFile) then
+  # ------------------------------------------
+  # Read the geometry of the last calculation
+  # ------------------------------------------
+  myGeom.Read();
+  Cartesians = myGeom.GetCartesians();
+  atomicNumbers = myGeom.GetAtomicNumbers();
+  EnGradFile = openFile(enGradFilename, "w");
+  Write2File(EnGradFile, "\n\n\n");
+  Write2File(EnGradFile, " %d\n", nAtoms);
+  Write2File(EnGradFile, "\n\n\n");
+  if (addCorrelation) then
+    Write2File(EnGradFile, " %.12lf\n", scfEnCBS + corrEnCBS);
+  else
+    Write2File(EnGradFile, " %.12lf\n", scfEnCBS);
+  EndIf
+  Write2File(EnGradFile, "\n\n\n");
+  for i from 0 to 3*nAtoms-1 Do
+    if (addCorrelation) then
+      Write2File(EnGradFile, "     %20.12lf\n", totalGradCBS[i]);
+    else
+      Write2File(EnGradFile, "     %20.12lf\n", scfGradCBS[i]);
+    EndIf
+  EndFor
+  Write2File(EnGradFile, "\n\n\n");
+  for i from 0 to nAtoms-1 Do
+    Write2File(EnGradFile, "%5d  %12.8lf  %12.8lf   %12.8lf\n", atomicNumbers[i], cartesians[i][0], cartesians[i][1], cartesians[i][2]);
+  EndFor
+  closeFile(EnGradFile);
+
+EndIf
+
+End

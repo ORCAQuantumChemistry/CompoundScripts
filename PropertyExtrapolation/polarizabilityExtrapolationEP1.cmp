@@ -1,0 +1,401 @@
+#   Author: Dimitrios G. Liakos and Frank Neese
+#   Date  : June of 2024
+#
+#   This is a compound file that extrapolates the
+#   polarizability to Complete Basis Set Limit (CBS).
+#
+#   STEPS:
+#   Step1 : Run HF calculation with small basis set
+#          Read scfPolX and scfEnX
+#   Step2 : Run Correlation calculation with small basis set
+#          Read totalPolX and totalEnX
+#   Step3 : Calculate the gradient differene to get
+#          the corrPolX (only the correlation part)
+#   Step4 : Run HF calculation with big basis set
+#          Read scfPolY and scfEnY
+#   Step5 : Run correlation calculation with big basis set
+#          Read totalPolY and totalEnY
+#   Step6 : Calculate the gradient difference with the
+#          big basis set to get corrPolY
+#   Step7 : Evaluate scfPolCBS and scfEnCBS
+#          using scfPolX and scfPolY
+#   Step8 : Evaluate corrPolCBS using 
+#          corrPolX and corrPolY
+#   Step9 : Add scfPolCBS and corrPolCBS to get
+#          totalPolCBS
+#   Step10: If needed, create an ORCA engrad file
+#
+#
+#   NOTE: It works with an xyz file the name of which we should provide.
+#         using the variable molecule.
+#
+#   NOTE: We extrapolate the raw a tensor not the diagonalized one.
+#
+#   The script creates a .csv file with the with the following information:
+#   1. molecule
+#   2. method
+#   3. extrapolation
+#   4. basisSet
+#   5. all the raw values (raw_axx, raw_axy, ...)
+#   6. the diagonal values (diag_axx, diag_ayy, diag_zz)
+#   7. the orientation values (ori_xx, ori_xy, ...)
+#   8. the isotropic value.
+#   9. energy
+#
+#   We extrapolate the SCF part using the scheme 
+#     proposed in: J. Phys. Chem. 129, 184116, 2008
+#       E_SCF(X) = E_SCF(CBS)+Aexp(-a*SQRT(X))
+#
+#   We extrapolate the correlation part using the schem 
+#     proposed in: J. Chem. Phys. 1997, 106, 9639
+#   E_CBS(CORR)=(X^b*E_X(CORR)-Y^b*E_Y(CORR))/(X^b-Y^b)
+#
+#   We use alpha and beta exponents proposed in:
+#     J. Chem. Theory Comput., 7, 33-43 (2011)
+#     
+#   alpha exponents:
+#      cc: 2/3->4.42, 3/4->5.46, 4/5->9.19, 5/6->0.0
+#  aug-cc: 2/3->4.30, 3/4->5.79, 4/5->0.0
+#   beta exponents:
+#      cc: 2/3->2.46, 3/4->3.05, 4/5->3.00
+#  aug-cc: 2/3->2.51, 3/4->3.05, 4/5->3.00 
+# ----------------------    Variables    -------------------------------
+# --- Variables to be adjusted (e.g. using 'with' ----------------------
+Variable molecule           = "h2o.xyz";       # xyz file of the initial structure
+Variable charge             = 0;               # Charge
+Variable multiplicity       = 1;               # Spin multiplicity
+Variable method             = "MP2";           # The method we use for the calculation
+Variable LowerBasis         = "cc-pVDZ";       # Small basis set
+Variable UpperBasis         = "cc-pVTZ";       # Big basis set
+Variable restOfInput        = "ExtremeSCF NoFrozenCore ";       # The rest of the simple input
+Variable blocksInput        = "%ElProp polar 1 End"; # %MP2 density relaxed End";  The blocks input
+Variable addCorrelation     = true;            # If we have a correlation part
+Variable myProperty         = "POLAR_RAW";     #
+Variable scfEnPropName      = "MP2_Ref_Energy";  # The name of the property for the SCFenergy
+Variable corrEnPropName     = "MP2_Corr_Energy"; # The name of the property for the correlation energy
+Variable LowerCardinal      = 2;               # Cardinal number of small basis set
+Variable UpperCardinal      = 3;               # Cardinal number of big basis set
+Variable alpha              = 4.420;           # Exponent for SCF extrapolation
+Variable beta               = 2.460;           # Exponent for corrleation extrapolation
+Variable basename           = "h2o";           # Filename of the csv file
+Variable density            = "unrelaxed";
+# ------------------  python plot relevant variables ---------------------------------------
+Variable DoPython     = true;             # if we want python or not
+Variable lw           = 4;                # The line width in case we plot with python
+Variable marker       = "o";              # The type of markers
+Variable markerSize   = 10;               # The size of the markers in case we plot
+Variable fontSize     = 18;
+
+# ---------------------------------------------------------------------
+# -------------- Rest of the variables --------------------------------
+Variable scfPolX, scfPolY;       # SCF raw polarizabilities
+Variable scfPolCBS[3][3];
+Variable corrPolX[3][3];         # Correlation raw polarizabilities
+Variable corrPolY[3][3];
+Variable corrPolCBS[3][3];
+Variable totalPolX, totalPolY;             # Total raw polarizabilities
+Variable totalPolCBS[3][3];
+Variable scfEnX, scfEnY, scfEnCBS;             # SCF energies
+Variable corrEnX, corrEnY, corrEnCBS;          # Correlation enegies
+Variable eX = 0.0;
+Variable eY = 0.0;
+Variable res = -1;
+Variable fPtr;
+Variable denominator = 0.0;
+Variable polX=0.0, polY = 0.0, polCBS=0.0;
+Variable eigenVal, eigenVec, a_iso;
+Variable csvFilename, pythonFilename;
+Variable extrapolateSCF=true;
+Variable msg;
+
+if (LowerCardinal >=5) then
+   extrapolateSCF = false;
+endIf
+if (LowerBasis = "aug-cc-pVQZ" or LowerBasis = "aug-cc-pV5Z") then
+   extrapolateSCF = false;
+endIf
+# ---------------------------------------------------
+#  Open and Write file header for the csv file
+# ---------------------------------------------------
+write2String(csvFilename, "%s_%s_%s.csv", basename, density, molecule.GetBasename());
+fPtr = OpenFile(csvFilename, "a");
+write2File(fptr, "molecule,method,extrapolate,basisSet,density,raw_axx,raw_axy,raw_axz,raw_ayy,raw_ayz,raw_azz,a_xx,a_yy,a_zz,a_iso,energy\n");
+
+
+# -------------------------------------------------------------------
+# Step 1. SCF Calculation with small basis set (X)
+# -------------------------------------------------------------------
+New_Step
+  ! HF &{LowerBasis} &{restOfInput}
+  *xyzfile &{charge} &{multiplicity} &{Molecule}
+  &{blocksInput}
+Step_end
+scfEnX.readProperty(propertyName="SCF_Energy");
+scfPolX.readProperty(propertyName=myProperty, Property_Base=true);
+scfPolX.Diagonalize(eigenVal, eigenVec);
+a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+   molecule,"HF","no",LowerBasis,density,scfPolX[0][0],scfPolX[0][1],scfPolX[0][2],scfPolX[1][1],scfPolX[1][2],scfPolX[2][2],
+   eigenVal[0], eigenVal[1], eigenVal[2], a_iso, scfEnX);
+# -------------------------------------------------
+# Step2. Correlation Calculation with small basis set (X)
+# -------------------------------------------------
+if (addCorrelation) then
+  New_Step
+    ! &{method} &{LowerBasis} &{restOfInput}
+    &{blocksInput}
+  Step_end
+  scfEnX.readProperty(propertyName=scfEnPropName);
+  corrEnX.readProperty(propertyName=corrEnPropName);
+  totalPolX.readProperty(propertyName=myProperty, Property_Base=true);
+  totalPolX.Diagonalize(eigenVal, eigenVec);
+  a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,method,"no",LowerBasis,density,totalPolX[0][0],totalPolX[0][1],totalPolX[0][2],totalPolX[1][1],totalPolX[1][2],totalPolX[2][2],
+    eigenVal[0], eigenVal[1], eigenVal[2], a_iso, scfEnX+corrEnX);
+  # -------------------------------------------------
+  # Evaluate correlation gradient with small basis set (X)
+  # -------------------------------------------------
+  corrPolX = mat_p_mat(1, totalPolX, -1, scfPolX);
+  corrPolX.Diagonalize(eigenVal, eigenVec);
+  a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+     molecule,"corr","no",LowerBasis,density,corrPolX[0][0],corrPolX[0][1],corrPolX[0][2],corrPolX[1][1],corrPolX[1][2],corrPolX[2][2],
+     eigenVal[0], eigenVal[1], eigenVal[2], a_iso, corrEnX);
+EndIf
+
+# -------------------------------------------------
+# Step4. SCF Calculation with large basis set (Y)
+# -------------------------------------------------
+New_Step
+  !HF &{UpperBasis} &{restOfInput}
+  &{blocksInput}
+Step_End
+scfEnY.readProperty(propertyName="SCF_Energy");
+scfPolY.readProperty(propertyName=myProperty, Property_Base=true);
+scfPolY.Diagonalize(eigenVal, eigenVec);
+a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+   molecule,"HF","no",UpperBasis,density,scfPolY[0][0],scfPolY[0][1],scfPolY[0][2],scfPolY[1][1],scfPolY[1][2],scfPolY[2][2],
+   eigenVal[0], eigenVal[1], eigenVal[2], a_iso, scfEnY);
+# -------------------------------------------------
+# Step5. Correlation calculation with large basis set (Y)
+# -------------------------------------------------
+if (addCorrelation) then
+  New_Step
+    ! &{method} &{UpperBasis} &{restOfInput}
+    &{blocksInput}
+  Step_end
+  scfEnY.readProperty(propertyName=scfEnPropName);
+  corrEnY.readProperty(propertyName=corrEnPropName);
+  totalPolY.readProperty(propertyName=myProperty, Property_Base=true);
+  totalPolY.Diagonalize(eigenVal, eigenVec);
+  a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,method,"no",UpperBasis,density,totalPolY[0][0],totalPolY[0][1],totalPolY[0][2],totalPolY[1][1],totalPolY[1][2],totalPolY[2][2],
+    eigenVal[0], eigenVal[1], eigenVal[2], a_iso, corrEnY);
+
+  # -------------------------------------------------
+  # Evaluate correlation gradient with big basis set Y
+  # -------------------------------------------------
+  corrPolY = mat_p_mat(1, totalPolY, -1, scfPolY);
+  corrPolY.Diagonalize(eigenVal, eigenVec);
+  a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+     molecule,"corr","no",UpperBasis,density,corrPolY[0][0],corrPolY[0][1],corrPolY[0][2],corrPolY[1][1],corrPolY[1][2],corrPolY[2][2],
+     eigenVal[0], eigenVal[1], eigenVal[2], a_iso, scfEnY+corrEnY);
+EndIf
+
+# -------------------------------------------------
+# Step6. Extrapolate the SCF part of the gradient and energy
+# -------------------------------------------------
+eX               = exp(-alpha * sqrt(LowerCardinal));
+eY               = exp(-alpha * sqrt(UpperCardinal));
+denominator      = eY-eX;
+
+if (extrapolateSCF) then
+  scfEnCBS    = (scfEnX*eY - scfEnY*eX)/(eY-eX);
+else
+  scfEnCBS = scfEnY;
+endIf
+
+for i from 0 to 2 Do
+  for j from 0 to 2 Do
+    polX = scfPolX[i][j];
+    polY = scfPolY[i][j];
+    if (extrapolateSCF) then
+      scfPolCBS[i][j]  = (polX * eY - polY * eX)/denominator;
+    else
+      scfPolCBS[i][j] = polY;
+    endif
+  endFor
+endFor
+scfPolCBS.Diagonalize(eigenVal, eigenVec);
+a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+   molecule,"HF","EP1",UpperBasis,density,scfPolCBS[0][0],scfPolCBS[0][1],scfPolCBS[0][2],scfPolCBS[1][1],scfPolCBS[1][2],scfPolCBS[2][2],
+   eigenVal[0], eigenVal[1], eigenVal[2], a_iso, scfEnCBS);
+if (addCorrelation) then
+  # -------------------------------------------------
+  # Step7. Extrapolate the correlation part of the gradient and energy
+  # -------------------------------------------------
+  denominator = LowerCardinal^(beta)-(UpperCardinal)^(beta);
+
+  corrEnCBS =  (LowerCardinal^(beta)*corrEnX-(UpperCardinal)^(beta)*corrEnY)/denominator;
+  for i from 0 to 2 Do
+    for j from 0 to 2 Do
+      polX = corrPolX[i][j];
+      polY = corrPolY[i][j];
+
+      corrPolCBS[i][j] = (LowerCardinal^(beta)*polX-(UpperCardinal)^(beta)*polY)/denominator;
+    endFor
+  endFor
+  corrPolCBS.Diagonalize(eigenVal, eigenVec);
+  a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+     molecule,"corr","EP1",UpperBasis,density,corrPolCBS[0][0],corrPolCBS[0][1],corrPolCBS[0][2],corrPolCBS[1][1],corrPolCBS[1][2],corrPolCBS[2][2],
+     eigenVal[0], eigenVal[1], eigenVal[2], a_iso, corrEnCBS);
+  # -------------------------------------------------
+  # Add SCF and correlation part to get total CBS extrapolated values
+  # -------------------------------------------------
+  totalPolCBS = mat_p_mat(1, scfPolCBS, 1, corrPolCBS);
+  totalPolCBS.Diagonalize(eigenVal, eigenVec);
+  a_iso = (eigenVal[0]+eigenVal[1]+eigenVal[2])/3.0;
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,method,"EP1",UpperBasis,density,totalPolCBS[0][0],totalPolCBS[0][1],totalPolCBS[0][2],totalPolCBS[1][1],totalPolCBS[1][2],totalPolCBS[2][2],
+    eigenVal[0], eigenVal[1], eigenVal[2], a_iso, scfEnCBS+corrEnCBS);
+EndIf
+
+
+# -------------------------------------------------
+# Step8. Present the results
+# -------------------------------------------------
+print( "\n\n\n");
+print( "--------------------------------------------------------\n");
+print( "             Compound Extrapolation of Gradient         \n");
+print( "--------------------------------------------------------\n");
+print( "Molecule              : %s\n", molecule);
+print( "Method                : %s\n", method);
+print( "Rest of input         : %s\n", restOfInput);
+print( "Lower basis set       : %s\n", LowerBasis);
+print( "Upper basis set       : %s\n", UpperBasis);
+print( "Alpha                 : %.2lf\n", alpha);
+print( "Beta                  : %.2lf\n", beta);
+print( "Lower Cardinal number : %d\n", LowerCardinal);
+print( "Upper Cardinal number : %d\n", UpperCardinal);
+print( "AddCorrelation        : %s\n", AddCorrelation.GetString());
+print( "\n\n");
+print( "SCF Energy with small basis set         : %.12e\n", scfEnX);
+print( "SCF Energy with big basis set           : %.12e\n", scfEnY);
+print( "Extrapolated SCF energy                 : %.12e\n", scfEnCBS);
+print("\n\n");
+if (addCorrelation) then
+  print( "Correlation Energy with small basis set : %.12e\n", corrEnX);
+  print( "Correlation Energy with big basis set   : %.12e\n", corrEnY);
+  print( "Extrapolated correlation  energy        : %.12e\n", corrEnCBS);
+  print("\n\n");
+  print( "Total Energy with small basis set : %.12e\n", scfEnX   + corrEnX);
+  print( "Total Energy with big basis set   : %.12e\n", scfEnY   + corrEnY);
+  print( "Extrapolated Total energy         : %.12e\n", scfEnCBS + corrEnCBS);
+  print("\n\n");
+else
+  print( "Total Energy with small basis set : %.12e\n", scfEnX);
+  print( "Total Energy with big basis set   : %.12e\n", scfEnY);
+  print( "Extrapolated Total energy         : %.12e\n", scfEnCBS);
+  print("\n\n");
+EndIf
+
+print( "----------------------------------------------------------------\n");
+print( "SCF Raw polarizability with basis set: %s\n", LowerBasis );
+print( "----------------------------------------------------------------\n");
+for i from 0 to 2 Do
+  print(" %20lf     %20lf     %20lf\n", scfPolX[i][0], scfPolX[i][1], scfPolX[i][2]);
+EndFor
+if (addCorrelation) then
+  print( "----------------------------------------------------------------\n");
+  print( "Correlation Raw polarizability with basis set: %s\n", LowerBasis );
+  print( "----------------------------------------------------------------\n");
+  for i from 0 to 2 Do
+    print("%20lf     %20lf     %20lf\n", corrPolX[i][0], corrPolX[i][1], corrPolX[i][2]);
+  EndFor
+
+  print( "----------------------------------------------------------------\n");
+  print( "Total Raw polarizability with basis set: %s\n", LowerBasis );
+  print( "----------------------------------------------------------------\n");
+  for i from 0 to 2 Do
+    print("%20lf     %20lf     %20lf\n", totalPolX[i][0], totalPolX[i][1], totalPolX[i][2]);
+  EndFor
+EndIf
+
+print( "----------------------------------------------------------------\n");
+print( "SCF Raw Polarizability with basis set: %s\n", UpperBasis );
+print( "----------------------------------------------------------------\n");
+for i from 0 to 2 Do
+  print("%20lf     %20lf     %20lf\n", scfPolY[i][0], scfPolY[i][1], scfPolY[i][2]);
+EndFor
+
+if (addCorrelation) then
+  print( "----------------------------------------------------------------\n");
+  print( "Correlation raw polarizability with basis set: %s\n", UpperBasis );
+  print( "----------------------------------------------------------------\n");
+  for i from 0 to 2 Do
+    print("%20lf     %20lf     %20lf\n", corrPolY[i][0], corrPolY[i][1], corrPolY[i][2]);
+  EndFor
+  print( "----------------------------------------------------------------\n");
+  print( "Total raw polarizability with basis set: %s\n", UpperBasis );
+  print( "----------------------------------------------------------------\n");
+  for i from 0 to 2 Do
+    print("%20lf     %20lf     %20lf\n", totalPolY[i][0], totalPolY[i][1], totalPolY[i][2]);
+  EndFor 
+EndIf
+#
+print( "----------------------------------------------------------------\n");
+print( "Extrapolated SCF part of the raw polarizability:\n" );
+print( "----------------------------------------------------------------\n");
+for i from 0 to 2 Do
+  print("%20lf     %20lf     %20lf\n", scfPolCBS[i][0], scfPolCBS[i][1], scfPolCBS[i][2]);
+EndFor
+
+if (addCorrelation) then
+  print( "----------------------------------------------------------------\n");
+  print( "Extrapolated correlation part of the raw polarizability:\n" );
+  print( "----------------------------------------------------------------\n");
+  for i from 0 to 2 Do
+    print("%20lf     %20lf     %20lf\n", corrPolCBS[i][0], corrPolCBS[i][1], corrPolCBS[i][2]);
+  EndFor
+  print( "----------------------------------------------------------------\n");
+  print( "Extrapolated total raw polarizability:\n" );
+  print( "----------------------------------------------------------------\n");
+  for i from 0 to 2 Do
+    print("%20lf     %20lf     %20lf\n",totalPolCBS[i][0], totalPolCBS[i][1], totalPolCBS[i][2]);
+  EndFor
+EndIf
+print( "----------------------------------------------------------------\n");
+
+
+# ---------------------------------------------------
+#  Create a python file and run it
+# ---------------------------------------------------
+if (DoPython) then
+  write2String(pythonFilename, "%s.py", basename);
+  fPtr = openFile(pythonFilename, "w");
+  # Import necessary libraries
+  write2File(fPtr, "import pandas as pd\n");
+  write2File(fPtr, "import seaborn as sns\n");
+  write2File(fPtr, "import matplotlib.pyplot as plt\n");
+  # Read the csv file
+  write2File(fPtr, "df = pd.read_csv('%s')\n", csvFilename);
+  #Make a lineplot
+  write2File(fPtr, "sns.lineplot(data=df, x=\"basisSet\", y=\"a_iso\", hue=\"method\", \n
+                       lw=%d, markers=True, marker='%s', markersize=%d, dashes=False)\n", lw, marker, markersize);
+  write2File(fPtr, "plt.axhline(y=0, color='black', linestyle='-', linewidth=1)\n");
+  write2File(fPtr, "plt.title(\"a isotropic\", fontsize=%d)\n", fontsize+4);
+  write2File(fPtr, "plt.xlabel(\"Basis Set\", fontsize=%d)\n", fontsize);
+  write2File(fPtr, "plt.ylabel(\"a isotropic\", fontsize=%d)\n", fontsize);
+  write2File(fPtr, "plt.xticks(fontsize=%d)\n", fontSize);
+  write2File(fPtr, "plt.yticks(fontsize=%d)\n", fontSize);
+  write2File(fPtr, "plt.show()\n");
+  closeFile(fPtr);
+  sys_cmd("python3 %s", pythonFilename);
+EndIf
+End

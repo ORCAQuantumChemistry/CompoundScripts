@@ -1,0 +1,126 @@
+# Author:  Frank Neese and Dimitrios G. Liakos
+# Date  :  May of 2024 
+# ---------------------------------------------------
+#
+# This is a script that will use compound to extrapolate
+#   the nuclear gradient and then uset the External Optimizer
+#   of ORCA to perform a geometry optimization with 
+#   extrapolated gradients
+#
+# We perform the following steps.
+# 1. Choose an extrapolation scheme using one of the 
+#    available gradient extrapolation schemes.
+#    We practically do that with the compoundFilename
+#
+# 2. Create a script to run an ORCA calculalation with
+#    the external optimizer and the extrapolated
+#    gradient. We do that by running a script that runs
+#    an ORCA calculation that calculates the gradient
+#    and then copy this gradient file back to the expected
+#    name
+#
+# 3. Make a normal ORCA New_Step that calls the external
+#    optimizer
+#
+# NOTE: Depending on the chosen method the property names of the
+#       scfEnPropName and corrEnPropName have to be adjusted. For
+#       the gradient we do not have this problem because we read
+#       the last available one in the corresponding property file.
+#
+# NOTE: Variable baseFilename should have the name of the calling
+#       orca input file!.
+# ----------------------    Variables    -------------------------------
+# --- Variables to be adjusted (e.g. using 'with' ----------------------
+Variable molecule           = "initial.xyz";      # xyz file of the initial structure
+Variable charge             = 0;                  # Charge
+Variable multiplicity       = 1;                  # Spin multiplicity
+Variable method             = "MP2";              # The method we use for the calculation
+Variable LowerBasis         = "cc-pVDZ";          # Small basis set
+Variable UpperBasis         = "cc-pVTZ";          # Big basis set
+Variable restOfInput        = "EnGrad ";          # The rest of the simple input
+Variable addCorrelation     = true;               # If we have a correlation part
+Variable scfEnPropName      = "MP2_Ref_Energy";   # The name of the property for the SCFenergy
+Variable corrEnPropName     = "MP2_Corr_Energy";  # The name of the property for the correlation energy
+Variable LowerCardinal      = 2;                  # Cardinal number of small basis set
+Variable UpperCardinal      = 3;                  # Cardinal number of big basis set
+Variable alpha              = 4.420;              # Exponent for SCF extrapolation
+Variable beta               = 2.460;              # Exponent for corrleation extrapolation
+Variable gradExtrapolation  = "gradientExtrapolation.cmp"; # The compound script that extrapolates the gradient
+Variable baseFilename       = "run";
+Variable produceEnGradFile  = true;               # Produce an ORCA engrad file   
+Variable enGradFilename     = "result.engrad";    # Filename of the ORCA engrad file
+# -------------------------------------------------------
+#           Variables for the driver script
+Variable createDriverScript = true;            # The shell script driver
+Variable driverScript;                         # A script to create the extrapolated energy gradient
+Variable driverScriptName   = "runningScript";
+Variable submitCommand      = "orca";
+# --------------------------------------------------------
+
+# --------------------------------------------------------
+#           Variables for the ORCA input
+Variable createORCAInput = true;
+Variable orcaInput;                           # The ORCA input for the gradient extrapolation
+Variable orcaInputName  = "runGradient.inp";
+# --------------------------------------------------------
+
+# ------------------------------------------------
+# 1. Maybe Create the necessary driver script  
+#    for the external optimizer and make it executable
+#    NOTE: This will depenend on the operating system
+# -------------------------------------------------
+if (createDriverScript) then
+  driverScript = openFile(driverScriptName, "w");
+  write2File(driverScript, "%s %s\n", submitCommand, orcaInputName );
+  write2File(driverScript, "cp %s  %s_Compound_1_EXT.engrad\n", engradFilename, baseFilename);
+  closeFile(driverScript);
+  sys_cmd("chmod +x %s",driverScriptName);
+EndIf
+
+# ------------------------------------------------
+# 2. Maybe Create the ORCA input that will run the 
+#    compound script for the gradient extrapolation  
+# -------------------------------------------------
+if (createORCAInput) then
+  orcaInput = openFile(orcaInputName, "w");
+  Write2File(orcaInput, "%%Compound \"%s\"\n", gradExtrapolation);
+  Write2File(orcaInput, "  with\n");
+  Write2File(orcaInput, "    Molecule       =\"%s_Compound_1_EXT.xyz\"\;\n", baseFilename);
+  Write2File(orcaInput, "    charge         = %d\;\n",     charge);
+  Write2File(orcaInput, "    mutliplicity   = %d\;\n",     multiplicity);
+  Write2File(orcaInput, "    Method         = \"%s\"\;\n", method);
+  Write2File(orcaInput, "    restOfInput    = \"%s\"\;\n", restOfInput);
+  Write2File(orcaInput, "    addCorrelation = %s\;\n",     addCorrelation.GetString());
+  Write2File(orcaInput, "    scfEnPropName  = \"%s\"\;\n", scfEnPropName);
+  Write2File(orcaInput, "    corrEnPropName = \"%s\"\;\n", corrEnPropName); 
+  Write2File(orcaInput, "    LowerBasis     = \"%s\"\;\n", LowerBasis);
+  Write2File(orcaInput, "    UpperBasis     = \"%s\"\;\n", UpperBasis);
+  Write2File(orcaInput, "    LowerCardinal  = %d\;\n",     LowerCardinal);
+  Write2File(orcaInput, "    UpperCardinal  = %d\;\n",     UpperCardinal);
+  Write2File(orcaInput, "    alpha          = %.5lf\;\n",  alpha);
+  Write2File(orcaInput, "    beta           = %.5lf\;\n",  beta);
+  Write2File(orcaInput, "    produceEnGradFile=true;\n");
+  Write2File(orcaInput, "End\n");
+  closeFile(orcaInput);
+EndIf
+
+# ------------------------------------------------
+# 3. Copy the initial XYZ file to the one needed
+#    for the external optimizer 
+# -------------------------------------------------
+sys_cmd("cp %s %s_Compound_1_EXT.xyz", Molecule, baseFilename);
+
+
+# --------------------------------------------------
+# 1. Run the driver ORCA input file that calls the
+#    External optimizer
+# --------------------------------------------------
+New_Step
+  !ExtOpt Opt 
+  *xyzfile &{charge} &{multiplicity} &{baseFilename}_Compound_1_EXT.xyz
+  %method
+    ProgExt "./&{driverScriptName}"
+  End
+Step_End
+
+End

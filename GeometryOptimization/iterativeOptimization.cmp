@@ -1,29 +1,30 @@
-# Author: Dimitrios G. Liakos and Franke Neese
+# Author: Dimitrios G. Liakos, Zikuan Wang and Frank Neese
 # Date  : May/June of 2024
 #
 # *************************************** DESCRIPTION ***********************************************
 # iterative Optimization protocol to find structure with no negative
-# frequencies (e.g. real minima)
+# frequencies (i.e. real minima), or in case of transition state search,
+# find structure with exactly one imaginary frequency (i.e. saddle point)
 #
 # Step 1. Run a single point calculation (we need it for the first property file)
 #
-# Step 1. Loop and perform calculations with (optimization and frequencies)
+# Step 2. Loop and perform calculations with (optimization and frequencies)
 #
-# Step 2. Check the frequencies. If there are negative ones use the hessian 
+# Step 3. Check the frequencies. If there are negative ones use the hessian
 #         of the appropriate normal mode to adjust the geometry
 #
 # ------ Variables to adjust (e.g. using 'with') -------------------
 Variable molecule;
 Variable charge = 0;
 Variable mult   = 2;
-Variable method          = "HF";  #"HF-3c";
+Variable method          = "PM3";
 Variable MaxNTries       =  25;   # Number of maximum tries
 Variable CutOff          = -10.0; # CutOff for a negative frequency
 Variable scaling         = 0.6;   # Scaling factor for normal mode
-Variable NNegativeTarget = 0;     # Number of negative frequencies we allow
+Variable NNegativeTarget = 0;     # Number of negative frequencies we allow. For TS optimization, change to 1
 Variable myFilename      = "xyzInput.xyz";
 # ------------------------------------------------------------------
-# ------            Rest of variables            -------------------  
+# ------            Rest of variables            -------------------
 Geometry myGeom;
 Variable freqs, modes;
 Variable res = -1;
@@ -31,7 +32,7 @@ Variable NNegative =   0;
 Variable OptDone;
 
 # -----------------------------------------------------------
-# Perform a single point calculation. We need it for 
+# Perform a single point calculation. We need it for
 # the initial geometry from the property file
 # -----------------------------------------------------------
 New_Step
@@ -39,6 +40,7 @@ New_Step
   *xyzfile &{charge} &{mult} &{molecule}
 Step_End
 myGeom.Read();
+myGeom.BohrToAngs();
 myGeom.WriteXYZFile(filename=myFilename);
 
 # -----------------------------------------------------------
@@ -77,9 +79,11 @@ endfor
 # -----------------------------------------------------------------
 OptDone :
 if (NNegative > NNegativeTarget) then
-  print("ERROR The program did not find a structure with the desired\n number of imaginary frequencies.\n There are %9.3lf negative frequencies after %3d steps\n", NNegative,itry);
+  print("ERROR The program did not find a structure with the desired\n number of imaginary frequencies.\n There are %d negative frequencies after %3d steps,\n which is larger than the desired number %d.", NNegative,itry,NNegativeTarget);
+else if (NNegative < NNegativeTarget) then
+  print("ERROR The program did not find a structure with the desired\n number of imaginary frequencies.\n There are %d negative frequencies after %3d steps,\n which is smaller than the desired number %d.", NNegative,itry,NNegativeTarget);
 else
-  print("\nSUCCESS optimized structure with (%d) negative\n frequencies found after %3d stepsi\n", NNegative, itry);
+  print("\nSUCCESS optimized structure with (%d) negative\n frequencies found after %3d steps", NNegative, itry);
 endif
 
 End

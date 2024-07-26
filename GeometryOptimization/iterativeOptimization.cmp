@@ -14,10 +14,10 @@
 #         of the appropriate normal mode to adjust the geometry
 #
 # ------ Variables to adjust (e.g. using 'with') -------------------
-Variable molecule;
+Variable molecule ="initial.xyz";
 Variable charge = 0;
 Variable mult   = 2;
-Variable method          = "PM3";
+Variable method          = "B3LYP D3 def2-TZVP";
 Variable MaxNTries       =  25;   # Number of maximum tries
 Variable CutOff          = -10.0; # CutOff for a negative frequency
 Variable scaling         = 0.6;   # Scaling factor for normal mode
@@ -40,7 +40,6 @@ New_Step
   *xyzfile &{charge} &{mult} &{molecule}
 Step_End
 myGeom.Read();
-myGeom.BohrToAngs();
 myGeom.WriteXYZFile(filename=myFilename);
 
 # -----------------------------------------------------------
@@ -51,7 +50,7 @@ For itry From 1 To maxNTries Do
   # Perform a geometry optimization/Frequency calculation
   # --------------------------------------------
   New_Step
-    ! &{method} freq Opt
+    ! &{method} freq Opt Bohrs
     *xyzfile &{charge} &{mult} &{myFilename}
   Step_End
   res = freqs.readProperty(propertyName = "THERMO_FREQS");

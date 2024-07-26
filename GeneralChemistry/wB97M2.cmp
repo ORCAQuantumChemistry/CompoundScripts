@@ -1,0 +1,54 @@
+# ------------------------------------------------------------------------------------
+# Energy calculation with the wB97M(2) double-hybrid functional, as defined in
+# N. Mardirossian, M. Head-Gordon, J. Chem. Phys. 2018, 148, 241736.
+# The final energy is calculated non-variatonally using wB97M-V orbitals.
+# Note that FrozenCore is on default - one can turn it off using kw2 = "NoFrozenCore".
+# Author: Georgi L. Stoychev
+# ------------------------------------------------------------------------------------
+
+# Optional variables:
+Variable NLOpt = "SCNL";        # Consistent with Q-Chem. "NL" likely very similar. Only matters for Step 1.
+Variable Basis = "def2-TZVP";   # Should be TZ or higher for reliable results
+Variable AuxC  = "def2-TZVP/C"; # RI-MP2 is used by default. Must be compatible with the Basis
+Variable AuxJ  = "def2/J";      # RIJCOSX is used by default
+Variable RIMP2 = True;          # Set to false to turn off RI-MP2
+Variable Grid  = "defGrid2";    # Should be OK.
+Variable kw1   = "";            # Additional simple input keywords for step 1
+Variable kw2   = "";            # Additional simple input keywords for step 2
+
+# Output variables
+Variable EwB97MV, EwB97M2;      # Will hold the final energies
+
+# Step 1: wB97M-V calculation to obtain the orbitals
+New_Step
+  ! wB97M-V &{NLOpt} &{Grid} &{kw1}
+  %basis
+    Basis "&{Basis}"
+    AuxJ  "&{AuxJ}"
+  end
+Step_End
+
+# Step 2: single iteration with the wB97M(2) functional + MP2 correlation to get the final energy
+ReadMOs(1);
+New_Step
+  ! wB97M(2) &{NLOpt} &{Grid} &{kw2} NoIter CalcGuessEnergy
+  %basis
+    Basis "&{Basis}"
+    AuxC  "&{AuxC}"
+    AuxJ  "&{AuxJ}"
+  end
+  %scf
+    IgnoreConv 1
+  end
+  %mp2 RI &{RIMP2} end
+Step_End
+
+Read EwB97MV = DFT_Total_En[1];
+Read EwB97M2 = MP2_Total_Energy[2];
+
+Print("");
+Print("================================================================================\n");
+Print(" wB97M-V Energy:  %20.10lf\n",EwB97MV);
+Print(" wB97M(2) Energy: %20.10lf\n",EwB97M2);
+
+End

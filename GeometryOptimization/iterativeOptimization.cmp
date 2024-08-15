@@ -63,7 +63,7 @@ For itry From 1 To maxNTries Do
   NNegative = 0;
   For ifreq From 0 to freqs.GetSize()-1 Do
     if ( freqs[ifreq] < CutOff )  then
-       myGeom.FollowNormalMode(vibrationSN=ifreq, scalingFactor=scaling);
+       myGeom.FollowNormalMode(vibrationSN=ifreq+1, scalingFactor=scaling);
        NNegative = NNegative + 1;
     endif
   endfor

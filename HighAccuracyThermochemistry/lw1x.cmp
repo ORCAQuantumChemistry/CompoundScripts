@@ -1,0 +1,80 @@
+variable hf_dz, ec_dz, cc_dz, t_dz;
+variable hf_tz, ec_tz, cc_tz, t_tz;
+variable hf_cbs, cc_cbs, t_cbs;
+variable mp_fc, mp_fu, mp_cv;
+variable lw1x;
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-CCSD(T1)-F12 MiniPrint NoPop
+  %Basis
+    Basis "maug-cc-pV(D+d)Z"
+    AuxJ  "AutoAux"
+    AuxC  "AutoAux"
+    CABS  "AutoAux"
+  End
+Step_End
+read hf_dz = MDCI_REF_ENERGY[1];
+read ec_dz = MDCI_CORR_ENERGY[1];
+read t_dz  = MDCI_TRIPLES_ENERGY[1];
+cc_dz = ec_dz-t_dz;
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-CCSD(T1)-F12 MiniPrint NoPop
+  %Basis
+    Basis "maug-cc-pV(T+d)Z"
+    AuxJ  "AutoAux"
+    AuxC  "AutoAux"
+    CABS  "AutoAux"
+  End
+Step_End
+read hf_tz = MDCI_REF_ENERGY[2];
+read ec_tz = MDCI_CORR_ENERGY[2];
+read t_tz  = MDCI_TRIPLES_ENERGY[2];
+cc_tz = ec_tz-t_tz;
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-MP2 MiniPrint NoPop
+  %Basis
+    Basis "cc-pWCVTZ"
+    AuxJ  "AutoAux"
+    AuxC  "AutoAux"
+    CABS  "AutoAux"
+  End
+Step_End
+read mp_fc = MP2_TOTAL_ENERGY[3];
+
+New_Step
+  ! DKH DefGrid3 RIJCOSX TightPNO DLPNO-MP2 MiniPrint NoPop
+  %Method
+    NewNCore Li 0 End
+    NewNCore Be 0 End
+    NewNCore B  0 End
+    NewNCore C  0 End
+    NewNCore N  0 End
+    NewNCore O  0 End
+    NewNCore F  0 End
+    NewNCore Ne 0 End
+    NewNCore Na 2 End
+    NewNCore Mg 2 End
+    NewNCore Al 2 End
+    NewNCore Si 2 End
+    NewNCore P  2 End
+    NewNCore S  2 End
+    NewNCore Cl 2 End
+    NewNCore Ar 2 End
+  End
+  %Basis
+    Basis "cc-pWCVTZ"
+    AuxJ  "AutoAux"
+    AuxC  "AutoAux"
+    CABS  "AutoAux"
+  End
+Step_End
+read mp_fu = MP2_TOTAL_ENERGY[4];
+
+hf_cbs = hf_tz-(hf_tz-hf_dz)*3^-5/(3^-5-2^-5);
+cc_cbs = cc_tz-(cc_tz-cc_dz)*3^-4.7405/(3^-4.7405-2^-4.7405);
+t_cbs  = t_tz-(t_tz-t_dz)*3^-2.0879/(3^-2.0879-2^-2.0879);
+mp_cv  = mp_fu-mp_fc;
+lw1x   = hf_cbs+cc_cbs+t_cbs+mp_cv;
+End

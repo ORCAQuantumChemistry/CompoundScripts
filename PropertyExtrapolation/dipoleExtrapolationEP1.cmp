@@ -1,0 +1,334 @@
+#   Author: Dimitrios G. Liakos and Frank Neese
+#   Date  : October of 2024
+#
+#   This is a compound file that extrapolates the
+#   dipole moment to the Complete Basis Set Limit (CBS).
+#
+#   STEPS:
+#   Step1 : Run HF calculation with small basis set
+#           Read scfDX and scfEnX
+#   Step2 : Run Correlation calculation with small basis set
+#           Read totalDX and totalEnX
+#   Step3 : Calculate the gradient differene to get
+#           the corrDX (only the correlation part)
+#   Step4 : Run HF calculation with big basis set
+#           Read scfDY and scfEnY
+#   Step5 : Run correlation calculation with big basis set
+#           Read totalDY and totalEnY
+#   Step6 : Calculate the gradient difference with the
+#           big basis set to get corrDY
+#   Step7 : Evaluate scfDCBS and scfEnCBS
+#           using scfDX and scfPolY
+#   Step8 : Evaluate corrPolCBS using 
+#          corrPolX and corrPolY
+#   Step9 : Add scfPolCBS and corrPolCBS to get
+#          totalPolCBS
+#   Step10: If needed, create an ORCA engrad file
+#
+#
+#   NOTE: It works with an xyz file the name of which we should provide.
+#         using the variable molecule.
+#
+#   NOTE: We extrapolate the raw a tensor not the diagonalized one.
+#
+#   The script creates a .csv file with the with the following information:
+#   1. molecule
+#   2. method
+#   3. extrapolation
+#   4. basisSet
+#   5. all the d values (dx, dy, dz)
+#   8. the dipole magnitude (in Debye)
+#   9. energy
+#
+#   We extrapolate the SCF part using the scheme 
+#     proposed in: J. Phys. Chem. 129, 184116, 2008
+#       E_SCF(X) = E_SCF(CBS)+Aexp(-a*SQRT(X))
+#
+#   We extrapolate the correlation part using the schem 
+#     proposed in: J. Chem. Phys. 1997, 106, 9639
+#   E_CBS(CORR)=(X^b*E_X(CORR)-Y^b*E_Y(CORR))/(X^b-Y^b)
+#
+#   We use alpha and beta exponents proposed in:
+#     J. Chem. Theory Comput., 7, 33-43 (2011)
+#     
+#   alpha exponents:
+#      cc: 2/3->4.42, 3/4->5.46, 4/5->9.19, 5/6->0.0
+#  aug-cc: 2/3->4.30, 3/4->5.79, 4/5->0.0
+#   beta exponents:
+#      cc: 2/3->2.46, 3/4->3.05, 4/5->3.00
+#  aug-cc: 2/3->2.51, 3/4->3.05, 4/5->3.00 
+# ----------------------    Variables    -------------------------------
+# --- Variables to be adjusted (e.g. using 'with' ----------------------
+Variable molecule           = "h2o.xyz";       # xyz file of the initial structure
+Variable charge             = 0;               # Charge
+Variable multiplicity       = 1;               # Spin multiplicity
+Variable method             = "MP2";           # The method we use for the calculation
+Variable LowerBasis         = "cc-pVDZ";       # Small basis set
+Variable UpperBasis         = "cc-pVTZ";       # Big basis set
+Variable restOfInput        = "ExtremeSCF";    # The rest of the simple input
+Variable blocksInput        = "%MP2 Density relaxed End";              # The blocks input
+Variable addCorrelation     = true;            # If we have a correlation part
+Variable myProperty         = "DIPOLE_MOMENT_TOTAL";     # The property 
+Variable scfEnPropName      = "MP2_Ref_Energy";  # The name of the property for the SCFenergy
+Variable corrEnPropName     = "MP2_Corr_Energy"; # The name of the property for the correlation energy
+Variable LowerCardinal      = 2;               # Cardinal number of small basis set
+Variable UpperCardinal      = 3;               # Cardinal number of big basis set
+Variable alpha              = 4.420;           # Exponent for SCF extrapolation
+Variable beta               = 2.460;           # Exponent for corrleation extrapolation
+Variable basename           = "h2o";           # Filename of the csv file
+Variable density            = "unrelaxed";
+# ------------------  python plot relevant variables ---------------------------------------
+Variable DoPython     = false;             # if we want python or not
+Variable lw           = 4;                # The line width in case we plot with python
+Variable marker       = "o";              # The type of markers
+Variable markerSize   = 10;               # The size of the markers in case we plot
+Variable fontSize     = 18;
+
+# ---------------------------------------------------------------------
+# -------------- Rest of the variables --------------------------------
+Variable scfDX, scfDY;       # SCF dipole moment
+Variable scfDCBS[3];
+Variable corrDX[3];          # Correlation part of dipole moment
+Variable corrDY[3];
+Variable corrDCBS[3];
+Variable totalDX, totalDY;   # Total dipole moment
+Variable totalDCBS[3];
+Variable scfEnX, scfEnY, scfEnCBS;             # SCF energies
+Variable corrEnX, corrEnY, corrEnCBS;          # Correlation enegies
+Variable eX = 0.0;
+Variable eY = 0.0;
+Variable res = -1;
+Variable fPtr;
+Variable denominator = 0.0;
+Variable dX=0.0, dY = 0.0, dCBS=0.0, magnitude=0.0;
+Variable csvFilename, pythonFilename;
+Variable extrapolateSCF=true;
+Variable msg;
+
+if (LowerCardinal >=5) then
+   extrapolateSCF = false;
+endIf
+if (LowerBasis = "aug-cc-pVQZ" or LowerBasis = "aug-cc-pV5Z") then
+   extrapolateSCF = false;
+endIf
+# ---------------------------------------------------
+#  Open and Write file header for the csv file
+# ---------------------------------------------------
+write2String(csvFilename, "%s_%s_%s.csv", basename, density, molecule.GetBasename());
+fPtr = OpenFile(csvFilename, "a");
+write2File(fptr, "molecule,method,extrapolate,basisSet,density,dx,dy,dz,magnitude,energy\n");
+
+
+# -------------------------------------------------------------------
+# Step 1. SCF Calculation with small basis set (X)
+# -------------------------------------------------------------------
+New_Step
+  ! HF &{LowerBasis} &{restOfInput}
+  *xyzfile &{charge} &{multiplicity} &{Molecule}
+  &{blocksInput}
+Step_end
+scfEnX.readProperty(propertyName="SCF_Energy");
+scfDX.readProperty(propertyName=myProperty, Property_Base=true);
+magnitude = sqrt(scfDX[0]^2+scfDX[1]^2+scfDX[2]^2);
+write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+   molecule,"HF","no",LowerBasis,density,scfDX[0],scfDX[1],scfDX[2],magnitude, scfEnX);
+# -------------------------------------------------
+# Step2. Correlation Calculation with small basis set (X)
+# -------------------------------------------------
+if (addCorrelation) then
+  New_Step
+    ! &{method} &{LowerBasis} &{restOfInput}
+    &{blocksInput}
+  Step_end
+  scfEnX.readProperty(propertyName=scfEnPropName);
+  corrEnX.readProperty(propertyName=corrEnPropName);
+  totalDX.readProperty(propertyName=myProperty, Property_Base=true);
+  magnitude = sqrt(totalDX[0]^2+totalDX[1]^2+totalDX[2]^2);
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,"Total","no",LowerBasis,density,totalDX[0],totalDX[1],totalDX[2],magnitude,scfEnX+corrEnX);
+  # -------------------------------------------------
+  # Evaluate correlation gradient with small basis set (X)
+  # -------------------------------------------------
+  corrDX    = mat_p_mat(1, totalDX, -1, scfDX);
+  magnitude = sqrt(corrDX[0]^2+corrDX[1]^2+corrDX[2]^2);
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,"corr","no",LowerBasis,density,totalDX[0],totalDX[1],totalDX[2],magnitude,corrEnX);
+EndIf
+
+# -------------------------------------------------
+# Step4. SCF Calculation with large basis set (Y)
+# -------------------------------------------------
+New_Step
+  !HF &{UpperBasis} &{restOfInput}
+  &{blocksInput}
+Step_End
+scfEnY.readProperty(propertyName="SCF_Energy");
+scfDY.readProperty(propertyName=myProperty, Property_Base=true);
+magnitude = sqrt(scfDY[0]^2+scfDY[1]^2+scfDY[2]^2);
+write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+   molecule,"HF","no",UpperBasis,density,scfDY[0],scfDY[1],scfDY[2],magnitude, scfEnY);
+
+# -------------------------------------------------
+# Step5. Correlation calculation with large basis set (Y)
+# -------------------------------------------------
+if (addCorrelation) then
+  New_Step
+    ! &{method} &{UpperBasis} &{restOfInput}
+    &{blocksInput}
+  Step_end
+  scfEnY.readProperty(propertyName=scfEnPropName);
+  corrEnY.readProperty(propertyName=corrEnPropName);
+  totalDY.readProperty(propertyName=myProperty, Property_Base=true);
+  magnitude = sqrt(totalDY[0]^2+totalDY[1]^2+totalDY[2]^2);
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,"Total","no",UpperBasis,density,totalDY[0],totalDY[1],totalDY[2],magnitude,scfEnY+corrEnY);
+
+  # -------------------------------------------------
+  # Evaluate correlation dipole moment with big basis set Y
+  # -------------------------------------------------
+  corrDY    = mat_p_mat(1, totalDY, -1, scfDY);
+  magnitude = sqrt(corrDY[0]^2+corrDY[1]^2+corrDY[2]^2);
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,"corr","no",UpperBasis,density,totalDY[0],totalDY[1],totalDY[2],magnitude,corrEnY);
+EndIf
+
+# -------------------------------------------------
+# Step6. Extrapolate the SCF part of the dipole moment and and energy
+# -------------------------------------------------
+eX               = exp(-alpha * sqrt(LowerCardinal));
+eY               = exp(-alpha * sqrt(UpperCardinal));
+denominator      = eY-eX;
+
+if (extrapolateSCF) then
+  scfEnCBS    = (scfEnX*eY - scfEnY*eX)/(eY-eX);
+else
+  scfEnCBS = scfEnY;
+endIf
+
+for i from 0 to 2 Do
+  dX = scfDX[i];
+  dY = scfDY[i];
+  if (extrapolateSCF) then
+    scfDCBS[i]  = (dX * eY - dY * eX)/denominator;
+  else
+    scfDCBS[i] = dY;
+  endif
+endFor
+magnitude = sqrt(scfDCBS[0]^2+scfDCBS[1]^2+scfDCBS[2]^2);
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+    molecule,"HF","EP1",UpperBasis,density,scfDCBS[0],scfDCBS[1],scfDCBS[2],magnitude,scfEnCBS);
+
+if (addCorrelation) then
+  # -------------------------------------------------
+  # Step7. Extrapolate the correlation part of the dipole moment and energy
+  # -------------------------------------------------
+  denominator = LowerCardinal^(beta)-(UpperCardinal)^(beta);
+
+  corrEnCBS =  (LowerCardinal^(beta)*corrEnX-(UpperCardinal)^(beta)*corrEnY)/denominator;
+  for i from 0 to 2 Do
+    dX = corrDX[i];
+    dY = corrDY[i];
+
+    corrDCBS[i] = (LowerCardinal^(beta)*dX-(UpperCardinal)^(beta)*dY)/denominator;
+  endFor
+  magnitude = sqrt(corrDCBS[0]^2+corrDCBS[1]^2+corrDCBS[2]^2);
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+     molecule,"corr","EP1",UpperBasis,density,corrDCBS[0],corrDCBS[1],corrDCBS[2],magnitude,corrEnCBS);
+  # -------------------------------------------------
+  # Add SCF and correlation part to get total CBS extrapolated values
+  # -------------------------------------------------
+  totalDCBS = mat_p_mat(1, scfDCBS, 1, corrDCBS);
+  magnitude = sqrt(totalDCBS[0]^2+totalDCBS[1]^2+totalDCBS[2]^2);
+  write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
+     molecule,"Total","EP1",UpperBasis,density,totalDCBS[0],totalDCBS[1],totalDCBS[2],magnitude,scfEnCBS + corrEnCBS);
+EndIf
+
+
+# -------------------------------------------------
+# Step8. Present the results
+# -------------------------------------------------
+print( "\n\n\n");
+print( "--------------------------------------------------------\n");
+print( "             Compound Extrapolation of Gradient         \n");
+print( "--------------------------------------------------------\n");
+print( "Molecule              : %s\n", molecule);
+print( "Method                : %s\n", method);
+print( "Rest of input         : %s\n", restOfInput);
+print( "Lower basis set       : %s\n", LowerBasis);
+print( "Upper basis set       : %s\n", UpperBasis);
+print( "Alpha                 : %.2lf\n", alpha);
+print( "Beta                  : %.2lf\n", beta);
+print( "Lower Cardinal number : %d\n", LowerCardinal);
+print( "Upper Cardinal number : %d\n", UpperCardinal);
+print( "AddCorrelation        : %s\n", AddCorrelation.GetString());
+print( "\n\n");
+print( "SCF Energy with small basis set         : %.12e\n", scfEnX);
+print( "SCF Energy with big basis set           : %.12e\n", scfEnY);
+print( "Extrapolated SCF energy                 : %.12e\n", scfEnCBS);
+print("\n\n");
+if (addCorrelation) then
+  print( "Correlation Energy with small basis set : %.12e\n", corrEnX);
+  print( "Correlation Energy with big basis set   : %.12e\n", corrEnY);
+  print( "Extrapolated correlation  energy        : %.12e\n", corrEnCBS);
+  print("\n\n");
+  print( "Total Energy with small basis set       : %.12e\n", scfEnX   + corrEnX);
+  print( "Total Energy with big basis set         : %.12e\n", scfEnY   + corrEnY);
+  print( "Extrapolated Total energy               : %.12e\n", scfEnCBS + corrEnCBS);
+  print("\n\n");
+else
+  print( "Total Energy with small basis set       : %.12e\n", scfEnX);
+  print( "Total Energy with big basis set         : %.12e\n", scfEnY);
+  print( "Extrapolated Total energy               : %.12e\n", scfEnCBS);
+  print("\n\n");
+EndIf
+
+print( "----------------------------------------------------------------\n");
+print( "                        Dipole Moments                     \n" );
+print( "----------------------------------------------------------------\n");
+print( "%-20s %10s %10s %10s %10s\n", "Basis set", "d(x)", "d(y)", "d(z)", "magnitude"); 
+
+print( "\n                        SCF Part                     \n" );
+print( "----------------------------------------------------------------\n");
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", LowerBasis, scfDX[0], scfDX[1], scfDX[2], sqrt(scfDX[0]^2+scfDX[1]^2+scfDX[2]^2));
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", UpperBasis, scfDY[0], scfDY[1], scfDY[2], sqrt(scfDY[0]^2+scfDY[1]^2+scfDY[2]^2));
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", "CBS", scfDCBS[0], scfDCBS[1], scfDCBS[2], sqrt(scfDX[0]^2+scfDCBS[1]^2+scfDCBS[2]^2));
+
+print( "\n                      Correlation Part                     \n" );
+print( "----------------------------------------------------------------\n");
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", LowerBasis, corrDX[0], corrDX[1], corrDX[2], sqrt(corrDX[0]^2+corrDX[1]^2+corrDX[2]^2));
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", UpperBasis, corrDY[0], corrDY[1], corrDY[2], sqrt(corrDY[0]^2+corrDY[1]^2+corrDY[2]^2));
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", "CBS", corrDCBS[0], corrDCBS[1], corrDCBS[2], sqrt(corrDX[0]^2+corrDCBS[1]^2+corrDCBS[2]^2));
+
+
+print( "\n                           Total                       \n" );
+print( "----------------------------------------------------------------\n");
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", LowerBasis, totalDX[0], totalDX[1], totalDX[2], sqrt(totalDX[0]^2+totalDX[1]^2+totalDX[2]^2));
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", UpperBasis, totalDY[0], totalDY[1], totalDY[2], sqrt(totalDY[0]^2+totalDY[1]^2+totalDY[2]^2));
+print( "%-20s %10.4lf %10.4lf %10.4lf %10.4lf\n", "CBS", totalDCBS[0], totalDCBS[1], totalDCBS[2], sqrt(totalDX[0]^2+totalDCBS[1]^2+totalDCBS[2]^2));
+
+# ---------------------------------------------------
+#  Create a python file and run it
+# ---------------------------------------------------
+if (DoPython) then
+  write2String(pythonFilename, "%s.py", basename);
+  fPtr = openFile(pythonFilename, "w");
+  # Import necessary libraries
+  write2File(fPtr, "import pandas as pd\n");
+  write2File(fPtr, "import seaborn as sns\n");
+  write2File(fPtr, "import matplotlib.pyplot as plt\n");
+  # Read the csv file
+  write2File(fPtr, "df = pd.read_csv('%s')\n", csvFilename);
+  #Make a lineplot
+  write2File(fPtr, "sns.lineplot(data=df, x=\"basisSet\", y=\"a_iso\", hue=\"method\", \n
+                       lw=%d, markers=True, marker='%s', markersize=%d, dashes=False)\n", lw, marker, markersize);
+  write2File(fPtr, "plt.axhline(y=0, color='black', linestyle='-', linewidth=1)\n");
+  write2File(fPtr, "plt.title(\"a isotropic\", fontsize=%d)\n", fontsize+4);
+  write2File(fPtr, "plt.xlabel(\"Basis Set\", fontsize=%d)\n", fontsize);
+  write2File(fPtr, "plt.ylabel(\"a isotropic\", fontsize=%d)\n", fontsize);
+  write2File(fPtr, "plt.xticks(fontsize=%d)\n", fontSize);
+  write2File(fPtr, "plt.yticks(fontsize=%d)\n", fontSize);
+  write2File(fPtr, "plt.show()\n");
+  closeFile(fPtr);
+  sys_cmd("python3 %s", pythonFilename);
+EndIf
+End

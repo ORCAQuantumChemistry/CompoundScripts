@@ -1,0 +1,650 @@
+variable hf_dz, ec_dz, cc_dz, t_dz;
+variable hf_tz, ec_tz, cc_tz, t_tz;
+variable hf_cbs, cc_cbs, t_cbs;
+variable mp_fc, mp_fu, mp_cv;
+variable mp_pp, mp_dk, mp_rel;
+variable lw1x;
+
+New_Step
+  ! DKH DefGrid3 RIJCOSX TightPNO DLPNO-MP2 MiniPrint NoPop
+  %Basis
+    Basis         "cc-pVTZ-DK"
+    AuxJ          "AutoAux"
+    AuxC          "AutoAux"
+    CABS          "AutoAux"
+    NewGTO     Ga "cc-pVTZ-DK" End
+    NewAuxjGTO Ga "AutoAux" End
+    NewAuxcGTO Ga "AutoAux" End
+    NewCabsGTO Ga "AutoAux" End
+    NewGTO     Ge "cc-pVTZ-DK" End
+    NewAuxjGTO Ge "AutoAux" End
+    NewAuxcGTO Ge "AutoAux" End
+    NewCabsGTO Ge "AutoAux" End
+    NewGTO     As "cc-pVTZ-DK" End
+    NewAuxjGTO As "AutoAux" End
+    NewAuxcGTO As "AutoAux" End
+    NewCabsGTO As "AutoAux" End
+    NewGTO     Se "cc-pVTZ-DK" End
+    NewAuxjGTO Se "AutoAux" End
+    NewAuxcGTO Se "AutoAux" End
+    NewCabsGTO Se "AutoAux" End
+    NewGTO     Br "cc-pVTZ-DK" End
+    NewAuxjGTO Br "AutoAux" End
+    NewAuxcGTO Br "AutoAux" End
+    NewCabsGTO Br "AutoAux" End
+    NewGTO     Kr "cc-pVTZ-DK" End
+    NewAuxjGTO Kr "AutoAux" End
+    NewAuxcGTO Kr "AutoAux" End
+    NewCabsGTO Kr "AutoAux" End
+    NewGTO     In "cc-pVTZ-DK" End
+    NewAuxjGTO In "AutoAux" End
+    NewAuxcGTO In "AutoAux" End
+    NewCabsGTO In "AutoAux" End
+    NewGTO     Sn "cc-pVTZ-DK" End
+    NewAuxjGTO Sn "AutoAux" End
+    NewAuxcGTO Sn "AutoAux" End
+    NewCabsGTO Sn "AutoAux" End
+    NewGTO     Sb "cc-pVTZ-DK" End
+    NewAuxjGTO Sb "AutoAux" End
+    NewAuxcGTO Sb "AutoAux" End
+    NewCabsGTO Sb "AutoAux" End
+    NewGTO     Te "cc-pVTZ-DK" End
+    NewAuxjGTO Te "AutoAux" End
+    NewAuxcGTO Te "AutoAux" End
+    NewCabsGTO Te "AutoAux" End
+    NewGTO     I  "cc-pVTZ-DK" End
+    NewAuxjGTO I  "AutoAux" End
+    NewAuxcGTO I  "AutoAux" End
+    NewCabsGTO I  "AutoAux" End
+    NewGTO     Xe "cc-pVTZ-DK" End
+    NewAuxjGTO Xe "AutoAux" End
+    NewAuxcGTO Xe "AutoAux" End
+    NewCabsGTO Xe "AutoAux" End
+  End
+Step_End
+read mp_dk = MP2_TOTAL_ENERGY[1];
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-MP2 MiniPrint NoPop
+  %Basis
+    Basis         "cc-pVTZ"
+    AuxJ          "AutoAux"
+    AuxC          "AutoAux"
+    CABS          "AutoAux"
+    NewECP     Ga "SK-MCDHF-RSC" End
+    NewGTO     Ga "cc-pVTZ-PP"   End
+    NewAuxjGTO Ga "AutoAux" End
+    NewAuxcGTO Ga "AutoAux" End
+    NewCabsGTO Ga "AutoAux" End
+    NewECP     Ge "SK-MCDHF-RSC" End
+    NewGTO     Ge "cc-pVTZ-PP"   End
+    NewAuxjGTO Ge "AutoAux" End
+    NewAuxcGTO Ge "AutoAux" End
+    NewCabsGTO Ge "AutoAux" End
+    NewECP     As "SK-MCDHF-RSC" End
+    NewGTO     As "cc-pVTZ-PP"   End
+    NewAuxjGTO As "AutoAux" End
+    NewAuxcGTO As "AutoAux" End
+    NewCabsGTO As "AutoAux" End
+    NewECP     Se "SK-MCDHF-RSC" End
+    NewGTO     Se "cc-pVTZ-PP"   End
+    NewAuxjGTO Se "AutoAux" End
+    NewAuxcGTO Se "AutoAux" End
+    NewCabsGTO Se "AutoAux" End
+    NewECP     Br "SK-MCDHF-RSC" End
+    NewGTO     Br "cc-pVTZ-PP"   End
+    NewAuxjGTO Br "AutoAux" End
+    NewAuxcGTO Br "AutoAux" End
+    NewCabsGTO Br "AutoAux" End
+    NewECP     Kr "SK-MCDHF-RSC" End
+    NewGTO     Kr "cc-pVTZ-PP"   End
+    NewAuxjGTO Kr "AutoAux" End
+    NewAuxcGTO Kr "AutoAux" End
+    NewCabsGTO Kr "AutoAux" End
+    NewECP     In "SK-MCDHF-RSC" End
+    NewGTO     In "cc-pVTZ-PP"   End
+    NewAuxjGTO In "AutoAux" End
+    NewAuxcGTO In "AutoAux" End
+    NewCabsGTO In "AutoAux" End
+    NewECP     Sn "SK-MCDHF-RSC" End
+    NewGTO     Sn "cc-pVTZ-PP"   End
+    NewAuxjGTO Sn "AutoAux" End
+    NewAuxcGTO Sn "AutoAux" End
+    NewCabsGTO Sn "AutoAux" End
+    NewECP     Sb "SK-MCDHF-RSC" End
+    NewGTO     Sb "cc-pVTZ-PP"   End
+    NewAuxjGTO Sb "AutoAux" End
+    NewAuxcGTO Sb "AutoAux" End
+    NewCabsGTO Sb "AutoAux" End
+    NewECP     Te "SK-MCDHF-RSC" End
+    NewGTO     Te "cc-pVTZ-PP"   End
+    NewAuxjGTO Te "AutoAux" End
+    NewAuxcGTO Te "AutoAux" End
+    NewCabsGTO Te "AutoAux" End
+    NewECP     I  "SK-MCDHF-RSC" End
+    NewGTO     I  "cc-pVTZ-PP"   End
+    NewAuxjGTO I  "AutoAux" End
+    NewAuxcGTO I  "AutoAux" End
+    NewCabsGTO I  "AutoAux" End
+    NewECP     Xe "SK-MCDHF-RSC" End
+    NewGTO     Xe "cc-pVTZ-PP"   End
+    NewAuxjGTO Xe "AutoAux" End
+    NewAuxcGTO Xe "AutoAux" End
+    NewCabsGTO Xe "AutoAux" End
+  End
+Step_End
+read mp_pp = MP2_TOTAL_ENERGY[2];
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-CCSD(T1)-F12 MiniPrint NoPop
+  %Method
+    NewNCore Ga 0 End
+    NewNCore Ge 0 End
+    NewNCore As 0 End
+    NewNCore Se 0 End
+    NewNCore Br 0 End
+    NewNCore Kr 0 End
+    NewNCore In 0 End
+    NewNCore Sn 0 End
+    NewNCore Sb 0 End
+    NewNCore Te 0 End
+    NewNCore I  0 End
+    NewNCore Xe 0 End
+  End
+  %Basis
+    Basis         "maug-cc-pV(D+d)Z"
+    AuxJ          "AutoAux"
+    AuxC          "AutoAux"
+    CABS          "AutoAux"
+    NewECP     Ga "SK-MCDHF-RSC" End
+    NewGTO     Ga "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0222000              1.0000000
+                  P   1
+                  1         0.0145000              1.0000000
+                  End
+    NewAuxjGTO Ga "AutoAux" End
+    NewAuxcGTO Ga "AutoAux" End
+    NewCabsGTO Ga "AutoAux" End
+    NewECP     Ge "SK-MCDHF-RSC" End
+    NewGTO     Ge "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0310000              1.0000000
+                  P   1
+                  1         0.0232000              1.0000000
+                  End
+    NewAuxjGTO Ge "AutoAux" End
+    NewAuxcGTO Ge "AutoAux" End
+    NewCabsGTO Ge "AutoAux" End
+    NewECP     As "SK-MCDHF-RSC" End
+    NewGTO     As "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0370000              1.0000000
+                  P   1
+                  1         0.0308000              1.0000000
+                  End
+    NewAuxjGTO As "AutoAux" End
+    NewAuxcGTO As "AutoAux" End
+    NewCabsGTO As "AutoAux" End
+    NewECP     Se "SK-MCDHF-RSC" End
+    NewGTO     Se "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0433000              1.0000000
+                  P   1
+                  1         0.0345000              1.0000000
+                  End
+    NewAuxjGTO Se "AutoAux" End
+    NewAuxcGTO Se "AutoAux" End
+    NewCabsGTO Se "AutoAux" End
+    NewECP     Br "SK-MCDHF-RSC" End
+    NewGTO     Br "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0502000              1.0000000
+                  P   1
+                  1         0.0394000              1.0000000
+                  End
+    NewAuxjGTO Br "AutoAux" End
+    NewAuxcGTO Br "AutoAux" End
+    NewCabsGTO Br "AutoAux" End
+    NewECP     Kr "SK-MCDHF-RSC" End
+    NewGTO     Kr "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0571000              1.0000000
+                  P   1
+                  1         0.0443000              1.0000000
+                  End
+    NewAuxjGTO Kr "AutoAux" End
+    NewAuxcGTO Kr "AutoAux" End
+    NewCabsGTO Kr "AutoAux" End
+    NewECP     In "SK-MCDHF-RSC" End
+    NewGTO     In "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0203000              1.0000000
+                  P   1
+                  1         0.0141000              1.0000000
+                  End
+    NewAuxjGTO In "AutoAux" End
+    NewAuxcGTO In "AutoAux" End
+    NewCabsGTO In "AutoAux" End
+    NewECP     Sn "SK-MCDHF-RSC" End
+    NewGTO     Sn "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0275000              1.0000000
+                  P   1
+                  1         0.0209000              1.0000000
+                  End
+    NewAuxjGTO Sn "AutoAux" End
+    NewAuxcGTO Sn "AutoAux" End
+    NewCabsGTO Sn "AutoAux" End
+    NewECP     Sb "SK-MCDHF-RSC" End
+    NewGTO     Sb "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0327000              1.0000000
+                  P   1
+                  1         0.0271000              1.0000000
+                  End
+    NewAuxjGTO Sb "AutoAux" End
+    NewAuxcGTO Sb "AutoAux" End
+    NewCabsGTO Sb "AutoAux" End
+    NewECP     Te "SK-MCDHF-RSC" End
+    NewGTO     Te "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0369000              1.0000000
+                  P   1
+                  1         0.0299000              1.0000000
+                  End
+    NewAuxjGTO Te "AutoAux" End
+    NewAuxcGTO Te "AutoAux" End
+    NewCabsGTO Te "AutoAux" End
+    NewECP     I  "SK-MCDHF-RSC" End
+    NewGTO     I  "cc-pWCVDZ-PP"
+                  S   1
+                  1         4.200000E-02           1.0000000
+                  P   1
+                  1         3.380000E-02           1.0000000
+                  End
+    NewAuxjGTO I  "AutoAux" End
+    NewAuxcGTO I  "AutoAux" End
+    NewCabsGTO I  "AutoAux" End
+    NewECP     Xe "SK-MCDHF-RSC" End
+    NewGTO     Xe "cc-pWCVDZ-PP"
+                  S   1
+                  1         0.0473000              1.0000000
+                  P   1
+                  1         0.0379000              1.0000000
+                  End
+    NewAuxjGTO Xe "AutoAux" End
+    NewAuxcGTO Xe "AutoAux" End
+    NewCabsGTO Xe "AutoAux" End
+  End
+Step_End
+read hf_dz = MDCI_REF_ENERGY[3];
+read ec_dz = MDCI_CORR_ENERGY[3];
+read t_dz  = MDCI_TRIPLES_ENERGY[3];
+cc_dz = ec_dz-t_dz;
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-CCSD(T1)-F12 MiniPrint NoPop
+  %Method
+    NewNCore Ga 0 End
+    NewNCore Ge 0 End
+    NewNCore As 0 End
+    NewNCore Se 0 End
+    NewNCore Br 0 End
+    NewNCore Kr 0 End
+    NewNCore In 0 End
+    NewNCore Sn 0 End
+    NewNCore Sb 0 End
+    NewNCore Te 0 End
+    NewNCore I  0 End
+    NewNCore Xe 0 End
+  End
+  %Basis
+    Basis         "jun-cc-pV(T+d)Z"
+    AuxJ          "AutoAux"
+    AuxC          "AutoAux"
+    CABS          "AutoAux"
+    NewECP     Ga "SK-MCDHF-RSC" End
+    NewGTO     Ga "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0187000              1.0000000
+                  P   1
+                  1         0.0126000              1.0000000
+                  D   1
+                  1         0.0351000              1.0000000
+                  End
+    NewAuxjGTO Ga "AutoAux" End
+    NewAuxcGTO Ga "AutoAux" End
+    NewCabsGTO Ga "AutoAux" End
+    NewECP     Ge "SK-MCDHF-RSC" End
+    NewGTO     Ge "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0266000              1.0000000
+                  P   1
+                  1         0.0213000              1.0000000
+                  D   1
+                  1         0.0512000              1.0000000
+                  End
+    NewAuxjGTO Ge "AutoAux" End
+    NewAuxcGTO Ge "AutoAux" End
+    NewCabsGTO Ge "AutoAux" End
+    NewECP     As "SK-MCDHF-RSC" End
+    NewGTO     As "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0330000              1.0000000
+                  P   1
+                  1         0.0282000              1.0000000
+                  D   1
+                  1         0.0649000              1.0000000
+                  End
+    NewAuxjGTO As "AutoAux" End
+    NewAuxcGTO As "AutoAux" End
+    NewCabsGTO As "AutoAux" End
+    NewECP     Se "SK-MCDHF-RSC" End
+    NewGTO     Se "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0384000              1.0000000
+                  P   1
+                  1         0.0327000              1.0000000
+                  D   1
+                  1         0.0819000              1.0000000
+                  End
+    NewAuxjGTO Se "AutoAux" End
+    NewAuxcGTO Se "AutoAux" End
+    NewCabsGTO Se "AutoAux" End
+    NewECP     Br "SK-MCDHF-RSC" End
+    NewGTO     Br "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0445000              1.0000000
+                  P   1
+                  1         0.0396000              1.0000000
+                  D   1
+                  1         0.1009000              1.0000000
+                  End
+    NewAuxjGTO Br "AutoAux" End
+    NewAuxcGTO Br "AutoAux" End
+    NewCabsGTO Br "AutoAux" End
+    NewECP     Kr "SK-MCDHF-RSC" End
+    NewGTO     Kr "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0506000              1.0000000
+                  P   1
+                  1         0.0465000              1.0000000
+                  D   1
+                  1         0.1199000              1.0000000
+                  End
+    NewAuxjGTO Kr "AutoAux" End
+    NewAuxcGTO Kr "AutoAux" End
+    NewCabsGTO Kr "AutoAux" End
+    NewECP     In "SK-MCDHF-RSC" End
+    NewGTO     In "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0180000              1.0000000
+                  P   1
+                  1         0.0124000              1.0000000
+                  D   1
+                  1         0.0302000              1.0000000
+                  End
+    NewAuxjGTO In "AutoAux" End
+    NewAuxcGTO In "AutoAux" End
+    NewCabsGTO In "AutoAux" End
+    NewECP     Sn "SK-MCDHF-RSC" End
+    NewGTO     Sn "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0251000              1.0000000
+                  P   1
+                  1         0.0202000              1.0000000
+                  D   1
+                  1         0.0425000              1.0000000
+                  End
+    NewAuxjGTO Sn "AutoAux" End
+    NewAuxcGTO Sn "AutoAux" End
+    NewCabsGTO Sn "AutoAux" End
+    NewECP     Sb "SK-MCDHF-RSC" End
+    NewGTO     Sb "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0304000              1.0000000
+                  P   1
+                  1         0.0271000              1.0000000
+                  D   1
+                  1         0.0520000              1.0000000
+                  End
+    NewAuxjGTO Sb "AutoAux" End
+    NewAuxcGTO Sb "AutoAux" End
+    NewCabsGTO Sb "AutoAux" End
+    NewECP     Te "SK-MCDHF-RSC" End
+    NewGTO     Te "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0354000              1.0000000
+                  P   1
+                  1         0.0306000              1.0000000
+                  D   1
+                  1         0.0643000              1.0000000
+                  End
+    NewAuxjGTO Te "AutoAux" End
+    NewAuxcGTO Te "AutoAux" End
+    NewCabsGTO Te "AutoAux" End
+    NewECP     I  "SK-MCDHF-RSC" End
+    NewGTO     I  "cc-pWCVTZ-PP"
+                  S   1
+                  1         4.120000E-02           1.0000000
+                  P   1
+                  1         3.590000E-02           1.0000000
+                  D   1
+                  1         7.820000E-02           1.0000000
+                  End
+    NewAuxjGTO I  "AutoAux" End
+    NewAuxcGTO I  "AutoAux" End
+    NewCabsGTO I  "AutoAux" End
+    NewECP     Xe "SK-MCDHF-RSC" End
+    NewGTO     Xe "cc-pWCVTZ-PP"
+                  S   1
+                  1         0.0476000              1.0000000
+                  P   1
+                  1         0.0420000              1.0000000
+                  D   1
+                  1         0.0917000              1.0000000
+                  End
+    NewAuxjGTO Xe "AutoAux" End
+    NewAuxcGTO Xe "AutoAux" End
+    NewCabsGTO Xe "AutoAux" End
+  End
+Step_End
+read hf_tz = MDCI_REF_ENERGY[4];
+read ec_tz = MDCI_CORR_ENERGY[4];
+read t_tz  = MDCI_TRIPLES_ENERGY[4];
+cc_tz = ec_tz-t_tz;
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-MP2 MiniPrint NoPop
+  %Method
+    NewNCore Ga 0 End
+    NewNCore Ge 0 End
+    NewNCore As 0 End
+    NewNCore Se 0 End
+    NewNCore Br 0 End
+    NewNCore Kr 0 End
+    NewNCore In 0 End
+    NewNCore Sn 0 End
+    NewNCore Sb 0 End
+    NewNCore Te 0 End
+    NewNCore I  0 End
+    NewNCore Xe 0 End
+  End
+  %Basis
+    Basis         "cc-pWCVTZ"
+    AuxJ          "AutoAux"
+    AuxC          "AutoAux"
+    CABS          "AutoAux"
+    NewECP     Ga "SK-MCDHF-RSC" End
+    NewGTO     Ga "cc-pWCVTZ-PP" End
+    NewAuxjGTO Ga "AutoAux" End
+    NewAuxcGTO Ga "AutoAux" End
+    NewCabsGTO Ga "AutoAux" End
+    NewECP     Ge "SK-MCDHF-RSC" End
+    NewGTO     Ge "cc-pWCVTZ-PP" End
+    NewAuxjGTO Ge "AutoAux" End
+    NewAuxcGTO Ge "AutoAux" End
+    NewCabsGTO Ge "AutoAux" End
+    NewECP     As "SK-MCDHF-RSC" End
+    NewGTO     As "cc-pWCVTZ-PP" End
+    NewAuxjGTO As "AutoAux" End
+    NewAuxcGTO As "AutoAux" End
+    NewCabsGTO As "AutoAux" End
+    NewECP     Se "SK-MCDHF-RSC" End
+    NewGTO     Se "cc-pWCVTZ-PP" End
+    NewAuxjGTO Se "AutoAux" End
+    NewAuxcGTO Se "AutoAux" End
+    NewCabsGTO Se "AutoAux" End
+    NewECP     Br "SK-MCDHF-RSC" End
+    NewGTO     Br "cc-pWCVTZ-PP" End
+    NewAuxjGTO Br "AutoAux" End
+    NewAuxcGTO Br "AutoAux" End
+    NewCabsGTO Br "AutoAux" End
+    NewECP     Kr "SK-MCDHF-RSC" End
+    NewGTO     Kr "cc-pWCVTZ-PP" End
+    NewAuxjGTO Kr "AutoAux" End
+    NewAuxcGTO Kr "AutoAux" End
+    NewCabsGTO Kr "AutoAux" End
+    NewECP     In "SK-MCDHF-RSC" End
+    NewGTO     In "cc-pWCVTZ-PP" End
+    NewAuxjGTO In "AutoAux" End
+    NewAuxcGTO In "AutoAux" End
+    NewCabsGTO In "AutoAux" End
+    NewECP     Sn "SK-MCDHF-RSC" End
+    NewGTO     Sn "cc-pWCVTZ-PP" End
+    NewAuxjGTO Sn "AutoAux" End
+    NewAuxcGTO Sn "AutoAux" End
+    NewCabsGTO Sn "AutoAux" End
+    NewECP     Sb "SK-MCDHF-RSC" End
+    NewGTO     Sb "cc-pWCVTZ-PP" End
+    NewAuxjGTO Sb "AutoAux" End
+    NewAuxcGTO Sb "AutoAux" End
+    NewCabsGTO Sb "AutoAux" End
+    NewECP     Te "SK-MCDHF-RSC" End
+    NewGTO     Te "cc-pWCVTZ-PP" End
+    NewAuxjGTO Te "AutoAux" End
+    NewAuxcGTO Te "AutoAux" End
+    NewCabsGTO Te "AutoAux" End
+    NewECP     I  "SK-MCDHF-RSC" End
+    NewGTO     I  "cc-pWCVTZ-PP" End
+    NewAuxjGTO I  "AutoAux" End
+    NewAuxcGTO I  "AutoAux" End
+    NewCabsGTO I  "AutoAux" End
+    NewECP     Xe "SK-MCDHF-RSC" End
+    NewGTO     Xe "cc-pWCVTZ-PP" End
+    NewAuxjGTO Xe "AutoAux" End
+    NewAuxcGTO Xe "AutoAux" End
+    NewCabsGTO Xe "AutoAux" End
+  End
+Step_End
+read mp_fc = MP2_TOTAL_ENERGY[5];
+
+New_Step
+  ! DefGrid3 RIJCOSX TightPNO DLPNO-MP2 MiniPrint NoPop
+  %Method
+    NewNCore Li 0 End
+    NewNCore Be 0 End
+    NewNCore B  0 End
+    NewNCore C  0 End
+    NewNCore N  0 End
+    NewNCore O  0 End
+    NewNCore F  0 End
+    NewNCore Ne 0 End
+    NewNCore Na 2 End
+    NewNCore Mg 2 End
+    NewNCore Al 2 End
+    NewNCore Si 2 End
+    NewNCore P  2 End
+    NewNCore S  2 End
+    NewNCore Cl 2 End
+    NewNCore Ar 2 End
+    NewNCore Ga 0 End
+    NewNCore Ge 0 End
+    NewNCore As 0 End
+    NewNCore Se 0 End
+    NewNCore Br 0 End
+    NewNCore Kr 0 End
+    NewNCore In 0 End
+    NewNCore Sn 0 End
+    NewNCore Sb 0 End
+    NewNCore Te 0 End
+    NewNCore I  0 End
+    NewNCore Xe 0 End
+  End
+  %Basis
+    Basis         "cc-pWCVTZ"
+    AuxJ          "AutoAux"
+    AuxC          "AutoAux"
+    CABS          "AutoAux"
+    NewECP     Ga "SK-MCDHF-RSC" End
+    NewGTO     Ga "cc-pWCVTZ-PP" End
+    NewAuxjGTO Ga "AutoAux" End
+    NewAuxcGTO Ga "AutoAux" End
+    NewCabsGTO Ga "AutoAux" End
+    NewECP     Ge "SK-MCDHF-RSC" End
+    NewGTO     Ge "cc-pWCVTZ-PP" End
+    NewAuxjGTO Ge "AutoAux" End
+    NewAuxcGTO Ge "AutoAux" End
+    NewCabsGTO Ge "AutoAux" End
+    NewECP     As "SK-MCDHF-RSC" End
+    NewGTO     As "cc-pWCVTZ-PP" End
+    NewAuxjGTO As "AutoAux" End
+    NewAuxcGTO As "AutoAux" End
+    NewCabsGTO As "AutoAux" End
+    NewECP     Se "SK-MCDHF-RSC" End
+    NewGTO     Se "cc-pWCVTZ-PP" End
+    NewAuxjGTO Se "AutoAux" End
+    NewAuxcGTO Se "AutoAux" End
+    NewCabsGTO Se "AutoAux" End
+    NewECP     Br "SK-MCDHF-RSC" End
+    NewGTO     Br "cc-pWCVTZ-PP" End
+    NewAuxjGTO Br "AutoAux" End
+    NewAuxcGTO Br "AutoAux" End
+    NewCabsGTO Br "AutoAux" End
+    NewECP     Kr "SK-MCDHF-RSC" End
+    NewGTO     Kr "cc-pWCVTZ-PP" End
+    NewAuxjGTO Kr "AutoAux" End
+    NewAuxcGTO Kr "AutoAux" End
+    NewCabsGTO Kr "AutoAux" End
+    NewECP     In "SK-MCDHF-RSC" End
+    NewGTO     In "cc-pWCVTZ-PP" End
+    NewAuxjGTO In "AutoAux" End
+    NewAuxcGTO In "AutoAux" End
+    NewCabsGTO In "AutoAux" End
+    NewECP     Sn "SK-MCDHF-RSC" End
+    NewGTO     Sn "cc-pWCVTZ-PP" End
+    NewAuxjGTO Sn "AutoAux" End
+    NewAuxcGTO Sn "AutoAux" End
+    NewCabsGTO Sn "AutoAux" End
+    NewECP     Sb "SK-MCDHF-RSC" End
+    NewGTO     Sb "cc-pWCVTZ-PP" End
+    NewAuxjGTO Sb "AutoAux" End
+    NewAuxcGTO Sb "AutoAux" End
+    NewCabsGTO Sb "AutoAux" End
+    NewECP     Te "SK-MCDHF-RSC" End
+    NewGTO     Te "cc-pWCVTZ-PP" End
+    NewAuxjGTO Te "AutoAux" End
+    NewAuxcGTO Te "AutoAux" End
+    NewCabsGTO Te "AutoAux" End
+    NewECP     I  "SK-MCDHF-RSC" End
+    NewGTO     I  "cc-pWCVTZ-PP" End
+    NewAuxjGTO I  "AutoAux" End
+    NewAuxcGTO I  "AutoAux" End
+    NewCabsGTO I  "AutoAux" End
+    NewECP     Xe "SK-MCDHF-RSC" End
+    NewGTO     Xe "cc-pWCVTZ-PP" End
+    NewAuxjGTO Xe "AutoAux" End
+    NewAuxcGTO Xe "AutoAux" End
+    NewCabsGTO Xe "AutoAux" End
+  End
+Step_End
+read mp_fu = MP2_TOTAL_ENERGY[6];
+
+hf_cbs = hf_tz-(hf_tz-hf_dz)*3^-5/(3^-5-2^-5);
+cc_cbs = cc_tz-(cc_tz-cc_dz)*3^-4.7405/(3^-4.7405-2^-4.7405);
+t_cbs  = t_tz-(t_tz-t_dz)*3^-2.0879/(3^-2.0879-2^-2.0879);
+mp_cv  = mp_fu-mp_fc;
+mp_rel = mp_dk-mp_pp;
+lw1x   = hf_cbs+cc_cbs+t_cbs+mp_cv+mp_rel;
+End

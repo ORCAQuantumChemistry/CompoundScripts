@@ -1,0 +1,47 @@
+%Compound
+    # ------------------------------------
+    # SCF
+    # ------------------------------------
+    New_Step
+
+    ! B3LYP D3BJ def2-TZVP RIJCOSX 
+    %maxcore 2000
+    %pal 
+    nprocs 4 
+    end
+
+    *xyzfile 0 1 example.xyz
+
+    Step_End
+
+
+
+    # ------------------------------------
+    # Second job with same goemetry
+    # but different functional
+    # ------------------------------------
+    New_Step
+
+    ! B3LYP D3BJ def2-TZVP RIJK moread noiter
+    %maxcore 2000
+    %pal 
+    nprocs 4 
+    end
+
+    %tddft 
+        nroots 20
+    end
+
+    %basis 
+        GTOAuxJName = "ris.bas"
+        GTOAuxJKName = "ris.bas"
+    end
+
+    %method 
+    xckernelx 0
+    xckernelc 0
+    end
+
+    Step_End
+
+EndRun

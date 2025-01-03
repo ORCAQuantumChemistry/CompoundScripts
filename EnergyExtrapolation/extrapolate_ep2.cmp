@@ -146,7 +146,7 @@ CBS_SCF = (SCF_X*eY - SCF_Y*eX)/(eY-eX);
 CBS_corr = (X^beta*corr_X - Y^beta*corr_Y)/(X^beta-Y^beta);  
 
 #                   Sum up
-CBS_Total = CBS_SCF + CBS_corr + (corr_X_exp - corr_X);          
+CBS_Total = CBS_SCF + CBS_corr;          
 
 # -------------------------------------------------
 # Print the results

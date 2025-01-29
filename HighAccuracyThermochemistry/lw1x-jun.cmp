@@ -84,7 +84,7 @@ print("Summary of the L-W1X Computation\n");
 print("--------------------------------\n");
 print("Chan, B.; Karton, A.\n");
 print("J. Comput. Chem. 2022, 43, 1394\n");
-print("using the standard L-W1X protocol\n");
+print("using the L-W1X protocol with the jun basis sets\n");
 print("\n");
 print(" E[HF   / CBS] %20.12lf\n", hf_cbs);
 print("DE[CCSD / CBS] %20.12lf\n", cc_cbs);

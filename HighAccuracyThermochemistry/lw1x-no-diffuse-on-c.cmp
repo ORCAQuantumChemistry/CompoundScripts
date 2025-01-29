@@ -85,4 +85,20 @@ cc_cbs = cc_tz-(cc_tz-cc_dz)*3^-4.7405/(3^-4.7405-2^-4.7405);
 t_cbs  = t_tz-(t_tz-t_dz)*3^-2.0879/(3^-2.0879-2^-2.0879);
 mp_cv  = mp_fu-mp_fc;
 lw1x   = hf_cbs+cc_cbs+t_cbs+mp_cv;
+
+print("\n");
+print("--------------------------------\n");
+print("Summary of the L-W1X Computation\n");
+print("--------------------------------\n");
+print("Chan, B.; Karton, A.\n");
+print("J. Comput. Chem. 2022, 43, 1394\n");
+print("using the L-W1X protocol with no diffuse function on C\n");
+print("\n");
+print(" E[HF   / CBS] %20.12lf\n", hf_cbs);
+print("DE[CCSD / CBS] %20.12lf\n", cc_cbs);
+print("DE[(T)  / CBS] %20.12lf\n", t_cbs);
+print("DE[CV]         %20.12lf\n", mp_cv);
+print(" E[L-W1X]      %20.12lf\n", lw1x);
+print("\n");
+
 End

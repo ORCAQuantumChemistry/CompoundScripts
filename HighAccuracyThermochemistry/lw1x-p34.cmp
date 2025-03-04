@@ -623,4 +623,21 @@ t_cbs  = t_tz-(t_tz-t_dz)*3^-2.0879/(3^-2.0879-2^-2.0879);
 mp_cv  = mp_fu-mp_fc;
 mp_rel = mp_dk-mp_pp;
 lw1x   = hf_cbs+cc_cbs+t_cbs+mp_cv+mp_rel;
+
+print("\n");
+print("--------------------------------\n");
+print("Summary of the L-W1X Computation\n");
+print("--------------------------------\n");
+print("Chan, B.; Karton, A.\n");
+print("J. Comput. Chem. 2022, 43, 1394\n");
+print("using the L-W1X-P34 protocol\n");
+print("\n");
+print(" E[HF   / CBS] %20.12lf\n", hf_cbs);
+print("DE[CCSD / CBS] %20.12lf\n", cc_cbs);
+print("DE[(T)  / CBS] %20.12lf\n", t_cbs);
+print("DE[CV]         %20.12lf\n", mp_cv);
+print("DE[SR]         %20.12lf\n", mp_rel);
+print(" E[L-W1X]      %20.12lf\n", lw1x);
+print("\n");
+
 End

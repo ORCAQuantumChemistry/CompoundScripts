@@ -1,3 +1,10 @@
+# This script generates the "ris.bas" (or "ris+p.bas") file 
+# for the fitting basis for TDDFT-ris (or TDDFT-ris+p)  method
+# Simply run "python get_ris_bas.py" or "python get_ris_bas.py -p True"
+# I provided parameters for 106 elements in the "radi_exponent.txt" file, revise as need.
+
+
+
 import argparse
 
 
@@ -23,7 +30,6 @@ output_filename = 'ris.bas' if not args.pfunc else 'ris+p.bas'
 with open(input_filename, 'r') as file:
     lines = file.readlines()
 
-# 处理文件内容并生成输出
 with open(output_filename, 'w') as file:
     file.write('$DATA\n\n')
 

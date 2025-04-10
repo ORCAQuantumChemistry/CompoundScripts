@@ -1,7 +1,7 @@
 #
-# XYG3 with RI-MP2.
+# XYG3-type functional with RI-MP2.
 #
-# Final energy : EDH
+# Author: Shirong Wang srwang20@fudan.edu.cn
 #
 Variable xc;
 # ixc functional

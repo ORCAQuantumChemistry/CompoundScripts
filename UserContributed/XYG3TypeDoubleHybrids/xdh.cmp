@@ -7,6 +7,9 @@ Variable xc;
 # ixc functional
 #  3    XYG3
 #  31   revXYG3
+#  0    XYGJ-OS
+#  5    XYG5
+#  6    XYG6
 Variable ixc = 3;
 Variable basis = "def2-svp";
 Variable auxbas = "def2-svp/c";
@@ -15,6 +18,9 @@ Variable dlpno = "false";
 Variable acm[3] ;
 Variable scalldac = 0.6789;
 Variable pt2_coeff = 0.3211;
+Variable scs = False;
+Variable ss = 1.0;
+Variable os = 1.0;
 Variable Enscf;
 Variable Ept2;
 Variable Edh;
@@ -33,6 +39,35 @@ Else if (ixc = 31) then
  acm[1] = 0.1026;
  acm[2] = 0.6059;
  scalldac = 0.6059;
+Else if (ixc = 0) then
+ xc = "XYGJ-OS";
+ pt2_coeff = 0.4364;
+ scs = True;
+ ss = 0.0;
+ acm[0] = 0.7731;
+ acm[1] = 0.0 ;
+ acm[2] = 0.2754;
+ scalldac = 0.5063; 
+Else if (ixc = 5) then
+ xc = "XYG5";
+ pt2_coeff = 1.0;
+ scs = True;
+ ss = 0.2764;
+ os = 0.4548;
+ acm[0] = 0.9150;
+ acm[1] = 0.0238 ;
+ acm[2] = 0.4957;
+ scalldac = 0.4957; 
+Else if (ixc = 6) then
+ xc = "XYG6";
+ pt2_coeff = 1.0;
+ scs = True;
+ ss = 0.2426;
+ os = 0.4695;
+ acm[0] = 0.9105;
+ acm[1] = -0.0681 ;
+ acm[2] = 0.2244;
+ scalldac = 0.4044; 
 endif
 
 New_Step
@@ -41,8 +76,8 @@ New_Step
 Step_End
 Alias scf
 
-Read_Geom scf
-Read_Mos scf
+#Read_Geom(scf);
+ReadMos(scf);
 New_Step
 ! b3lyp_g &{basis}
 !  nopop 
@@ -58,21 +93,39 @@ end
 Step_End
 Alias nscf
 
-Read_Geom scf
-Read_Mos scf
-New_Step
-! RI-MP2 &{basis} &{auxbas}
-! noiter nopop
-! nofrozencore
-%mp2
- dlpno &{dlpno}
-end
-Step_End
-Alias pt2
+#Read_Geom(scf);
+ReadMos(scf);
+
+if (scs) then
+  New_Step
+  ! RI-MP2 &{basis} &{auxbas}
+  ! noiter nopop
+  ! nofrozencore
+  %mp2
+   dlpno &{dlpno}
+   doscs true
+   ps &{os}
+   pt &{ss}
+  end
+  Step_End
+else
+  New_Step
+  ! RI-MP2 &{basis} &{auxbas}
+  ! noiter nopop
+  ! nofrozencore
+  %mp2
+   dlpno &{dlpno}
+  end
+  Step_End
+endif
+  Alias pt2
 
 read Enscf = SCF_ENERGY[nscf];
 read Ept2 = MP2_CORR_ENERGY[pt2];
 
 Edh = (Enscf + Ept2*pt2_coeff);
 
+Print("");
+Print("================================================================================\n");
+Print(" %s Energy: %20.10lf\n", xc, Edh);
 End

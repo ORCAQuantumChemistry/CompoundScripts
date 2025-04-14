@@ -32,9 +32,9 @@ Variable var_goat = "GOAT";
 
 # ------ Optimisation Variables ---------------------
 Variable low_opt_method = "b97-d4";
-Variable low_opt_basis = "ma-def2-svp";
+Variable low_opt_basis = "def2-svp";
 Variable high_opt_method = "wb97m-d4rev";
-Variable high_opt_basis = "ma-def2-tzvp(-f)";
+Variable high_opt_basis = "def2-tzvp(-f)";
 
 New_step
   %base "conf_search"
@@ -42,20 +42,27 @@ New_step
   * xyzfile &{charge} &{multiplicity} &{inputFile}
 Step_end
 
+print("\nStarting low-level optimisation using global minimum structure from GOAT conformational search...\n");
+
 New_step
-  ! tightopt verytightscf &{low_opt_method} &{low_opt_basis} SMD(&{solvent}) PModel freq
-  %base "low_opt"
+  ! opt &{low_opt_method} &{low_opt_basis} SMD(&{solvent}) freq
+  %base "low_opt.globalminimum"
   * xyzfile &{charge} &{multiplicity} conf_search.globalminimum.xyz
 Step_end
+
+print("\nStarting high-level optimisation...\n");
+print("Reading from low-level optimisation...\n");
 
 ReadMOs(2);
 Read_Geom(2);
 
 New_step
-  %base "high_opt"
-  ! verytightopt extremescf &{high_opt_method} &{high_opt_basis} SMD(&{solvent}) freq defgrid3
-  * xyzfile &{charge} &{multiplicity} low_opt.xyz
+  ! opt &{high_opt_method} &{high_opt_basis} SMD(&{solvent}) freq
+  %base "high_opt.globalminimum"
+  * xyzfile &{charge} &{multiplicity} low_opt.globalminimum.xyz
 Step_end
 
+print("\nFinished high-level optimisation...\n");
+print("\nOptimised geometry written to high_opt.globalminimum.xyz\n");
 End
 

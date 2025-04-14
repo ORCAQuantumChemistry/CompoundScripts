@@ -21,8 +21,8 @@ Variable mult   = 1;
 Variable method          = "B3LYP D3 def2-TZVP";
 Variable MaxNTries       =  25;   # Number of maximum tries
 Variable CutOff          = -10.0; # CutOff for a negative frequency
-Variable scaling         = 0.1;   # Scaling factor for normal mode (WARNING: large values can cause molecules to "blow up")
-Variable NNegativeTarget = 0;     # Number of negative frequencies we allow. For TS optimization, change to 1
+Variable scaling         = 0.25;   # Scaling factor for normal mode (WARNING: large values can cause molecules to "blow up")
+Variable NNegativeTarget = 0;     # Number of negative frequencies wanted. For TS optimization, change to 1
 Variable myFilename      = "xyzInput.xyz";
 # ------------------------------------------------------------------
 # ------            Rest of variables            -------------------
@@ -62,7 +62,7 @@ For itry From 1 To maxNTries Do
   #  check for sufficiently negative frequencies
   # ---------------------------------------------
   NNegative = 0;
-  For ifreq From NNegativeTarget to freqs.GetSize()-1 Do
+  For ifreq From 0 to freqs.GetSize()-1 Do
     if ( freqs[ifreq] < CutOff )  then
        myGeom.FollowNormalMode(vibrationSN=ifreq+1, scalingFactor=scaling);
        NNegative = NNegative + 1;

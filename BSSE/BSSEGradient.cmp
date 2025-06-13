@@ -1,6 +1,7 @@
 #----------------------------------------------------------
 # Author :Dimitrios G. Liakos and Frank Neese
 # Date   :May of 2024
+# Update :June of 2025
 #
 # This is a script to calculate the BSSE corrected gradient
 #   once the geometry, with one fragment as ghost atoms, is
@@ -76,12 +77,12 @@ endif
 # ------------------------------------------------------------
 # Calculation for Fragment A
 # ------------------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basis}  &{restOfInput} EnGrad
   *xyzfile &{charge} &{mult} &{molecule} 
-Step_End
-res = enFragA.readProperty(propertyName = myPropName);
-res = gradFragA.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+StepEnd
+enFragA.readProperty(propertyName = myPropName);
+gradFragA.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
 # -------------------------------------
 # Read the geometry of Fragment A
 # -------------------------------------
@@ -95,23 +96,23 @@ fragA.CreateBSSE(filename=myFilename);
 # -------------------------------------
 # MonomerA
 # -------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput} &{optimization} &{EnGrad} Bohrs
   *xyzFile &{charge} &{mult} &{myFilename}_MonomerA.xyz 
-Step_End
+StepEnd
 monomerA.Read();
-res = enMonA.readProperty(propertyName = myPropName);
-res = gradMonomerA.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+enMonA.readProperty(propertyName = myPropName);
+gradMonomerA.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
 
 # -------------------------------------
 # Calculation of Frament B
 # -------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput} Engrad Bohrs
   *xyzFile &{charge} &{mult} &{myFilename}_FragmentB.xyz
 Step_End
-res = enFragB.readProperty(propertyName = myPropName);
-res = gradFragB.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+enFragB.readProperty(propertyName = myPropName);
+gradFragB.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
 
 # -------------------------------------
 # Calculation of MonomerB
@@ -121,8 +122,8 @@ New_Step
   *xyzFile &{charge} &{mult} &{myFilename}_MonomerB.xyz 
 Step_End
 monomerB.Read();
-res = enMonB.readProperty(propertyName = myPropName);
-res = gradMonomerB.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+enMonB.readProperty(propertyName = myPropName);
+gradMonomerB.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
 
 # -------------------------------------
 # Calculation of Dimer
@@ -131,8 +132,8 @@ New_Step
   !&{method} &{basis} &{restOfInput} EnGrad Bohrs
   *xyzFile &{charge} &{mult} &{myFilename}_Total.xyz
 Step_End
-res = enTotal.readProperty(propertyName = myPropName);
-res = gradTotal.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
+enTotal.readProperty(propertyName = myPropName);
+gradTotal.readProperty(propertyName = "Nuclear_Gradient", Property_Base=true);
 myGeom.Read();
 
 # -------------------------------------------------

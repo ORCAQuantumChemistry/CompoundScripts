@@ -1,6 +1,7 @@
 #----------------------------------------------------------
 # Author :Dimitrios G. Liakos
 # Date   :May of 2024
+# Updated:June of 2025
 #
 # This is a script to perform BSSE corrected calculations
 #   once the geometry, with one fragment as ghost atoms, is
@@ -82,10 +83,10 @@ endif
 # --------------------------------------
 # Calculation for Fragment A
 # --------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput}
   *xyzfile &{charge} &{mult} &{Molecule}
-Step_End
+StepEnd
 res = enFragA.readProperty(propertyName = myPropName);
 
 # -------------------------------------
@@ -102,40 +103,40 @@ monomerA.CreateBSSE(filename=myFilename);
 # If we need the correction do MonomerA
 # -------------------------------------
 if (DoCorrection) then
-  New_Step
+  NewStep
     !&{method} &{basis}  &{restOfInput} &{optimization} Bohrs
     *xyzFile &{charge} &{mult} &{myFilename}_MonomerA.xyz 
-  Step_End
+  StepEnd
   res = enMonomerA.readProperty(propertyName = myPropName);
 endIf
 
 # -------------------------------------
 # Calculation of Frament B
 # -------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput} Bohrs
   *xyzFile &{charge} &{mult} &{myFilename}_FragmentB.xyz
-Step_End
+StepEnd
 res = enFragB.readProperty(propertyName = myPropName);
 
 # -------------------------------------
 # If we need the correction do MonomerB
 # -------------------------------------
 if (DoCorrection) then
-  New_Step
+  NewStep
     !&{method} &{basis} &{restOfInput} &{optimization} Bohrs
     *xyzFile &{charge} &{mult} &{myFilename}_MonomerB.xyz 
-  Step_End
+  StepEnd
   res = enMonomerB.readProperty(propertyName = myPropName);
 endIf
 
 # -------------------------------------
 # Calculation of Dimer
 # -------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput} Bohrs
   *xyzFile &{charge} &{mult} &{myFilename}_Total.xyz
-Step_End
+StepEnd
 res = enTotal.readProperty(propertyName = myPropName);
 
 DE = enTotal - enFragA - enFragB;

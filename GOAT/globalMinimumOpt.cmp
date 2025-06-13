@@ -1,0 +1,68 @@
+# Author: James O'Brien
+# Date  : November of 2024
+#
+# *************************************** DESCRIPTION ***********************************************
+# Conformer search protocol to find and optimize the global lowest
+# lying conformer at a high level of theory
+#
+# N.B. PModel keyword is required for first optimisation following
+#      GOAT conformer search. Necessary to avoid error with initial
+#      guess (Failure to find MOs in .gbw file).
+#
+# N.B. Variable var_goat is required to avoid clashes with built-in
+#      GOAT variable.
+#
+#
+# Step 1. Run a GOAT conformational search
+#
+# Step 2. Perform a low-level preoptimisation of the lowest lying
+#         conformer
+#
+# Step 3. Perform a high-level optimisation
+#
+# ------ Global Variables -------------------
+Variable inputFile = "inp.xyz";
+Variable multiplicity = "1";
+Variable charge = "0";
+Variable solvent = "DMF";
+
+# ------ GOAT Variables ---------------------
+Variable goat_method = "XTB";
+Variable var_goat = "GOAT";
+
+# ------ Optimisation Variables ---------------------
+Variable low_opt_method = "b97-d4";
+Variable low_opt_basis = "def2-svp";
+Variable high_opt_method = "wb97m-d4rev";
+Variable high_opt_basis = "def2-tzvp(-f)";
+
+New_step
+  %base "conf_search"
+  ! &{var_goat} &{goat_method} CPCMX(&{solvent})
+  * xyzfile &{charge} &{multiplicity} &{inputFile}
+Step_end
+
+print("\nStarting low-level optimisation using global minimum structure from GOAT conformational search...\n");
+
+New_step
+  ! opt &{low_opt_method} &{low_opt_basis} SMD(&{solvent}) freq
+  %base "low_opt.globalminimum"
+  * xyzfile &{charge} &{multiplicity} conf_search.globalminimum.xyz
+Step_end
+
+print("\nStarting high-level optimisation...\n");
+print("Reading from low-level optimisation...\n");
+
+ReadMOs(2);
+Read_Geom(2);
+
+New_step
+  ! opt &{high_opt_method} &{high_opt_basis} SMD(&{solvent}) freq
+  %base "high_opt.globalminimum"
+  * xyzfile &{charge} &{multiplicity} low_opt.globalminimum.xyz
+Step_end
+
+print("\nFinished high-level optimisation...\n");
+print("\nOptimised geometry written to high_opt.globalminimum.xyz\n");
+End
+

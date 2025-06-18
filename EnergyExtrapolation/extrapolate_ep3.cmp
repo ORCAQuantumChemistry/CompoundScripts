@@ -1,5 +1,6 @@
 # Author: Dimitrios Liakos
 # Date  : May of 2024
+# Update: June of 2025
 #
 #
 #   This protocol estimates the complete basis limit (CBS) extrapolated electronic energy.
@@ -22,7 +23,7 @@
 # Step 2. Perform a calculation with basis set X (default: cc-pVDZ) and the 
 #         expensive method (default: CCSD(T)). Read corr_X_exp
 #
-## Step 3: Perform a calculation with a basis set X (default: cc-pVDZ) and the
+# Step 3: Perform a calculation with a basis set X (default: cc-pVDZ) and the
 #         cheaper method (default MP2). (Read SCF_X and corr_X)
 #
 # Step 4: Perform a calculation with a basis set Y (default: cc-pVTZ) and the
@@ -112,36 +113,36 @@ eZ = exp(-alpha*sqrt(Z));
 # -------------------------------------------------
 # Calculation with small basis set (X) and expensive method
 # -------------------------------------------------
-New_Step
+NewStep
   !&{method_exp} &{basisSets[0]} &{restOfInput} 
   *xyzfile &{charge} &{mult} &{molecule}
-Step_End
+StepEnd
 corr_X_exp.readProperty(propertyName=expCorrProperty);  
 
 # -------------------------------------------------
 # Calculation with small basis set (X) and cheap method
 # -------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basisSets[0]} &{restOfInput} 
-Step_End
+StepEnd
 SCF_X.readProperty(propertyName=cheapSCFProperty);
 corr_X.readProperty(propertyName=cheapCorrProperty);  
 
 # -------------------------------------------------
 # Calculation with medium basis set (Y) and Cheap method
 # -------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basisSets[1]} &{restOfInput}
-Step_End
+StepEnd
 SCF_Y.readProperty(propertyName=cheapSCFProperty);
 corr_Y.readProperty(propertyName=cheapCorrProperty);      
 
 # -------------------------------------------------
 # Calculation with large basis set (Z) and Cheap method
 # -------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basisSets[2]} &{restOfInput}
-Step_End
+StepEnd
 SCF_Z.readProperty(propertyName=cheapSCFProperty);
 corr_Z.readProperty(propertyName=cheapCorrProperty);      
 
@@ -192,8 +193,8 @@ print("Corr. Energy with %-12s and %-18s : %-20.10lf\n", basisSets[2], method, c
 print("CBS Corr. Energy %14s (no correction)       : %-20.10lf\n", "",CBS_Corr);
 print("CBS Corr. Energy %14s                       : %-20.10lf\n", "", CBS_Corr + (corr_X_exp - corr_X));
 print("\n -------------------- Total -------------------------\n");
-print("Total CBS Energy (no correction)                      : %-20.10lf\n", CBS_Total);
-print("Total CBS Energy                                      : %-20.10lf\n", CBS_Total + (corr_X_exp - corr_X));
+print("Total CBS Energy (no correction)                      : %-20.10lf\n", CBS_Total - (corr_X_exp - corr_X));
+print("Total CBS Energy                                      : %-20.10lf\n", CBS_Total );
 
 
 #Final end

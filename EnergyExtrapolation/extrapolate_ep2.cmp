@@ -1,6 +1,6 @@
 # Author: Dimitrios Liakos
 # Date  : May of 2024
-#
+# Update: June of 2025
 #
 #   This protocol estimates the complete basis limit (CBS) extrapolated electronic energy.
 # It extrapolates separately the SCF part and the correlation part. 
@@ -112,27 +112,27 @@ eY = exp(-alpha*sqrt(Y));
 # -------------------------------------------------
 # Calculation with small basis set and expensive method
 # -------------------------------------------------
-New_Step
+NewStep
   !&{method_exp} &{basisSets[0]} &{restOfInput}
   *xyzfile &{charge} &{mult} &{molecule}
-Step_End
+StepEnd
 corr_X_exp.readProperty(propertyName=expCorrProperty);  
 
 # -------------------------------------------------
 # Calculation with small basis set and cheap method
 # -------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basisSets[0]} &{restOfInput} 
-Step_End
+StepEnd
 SCF_X.readProperty(propertyName=cheapSCFProperty);   
 corr_X.readProperty(propertyName=cheapCorrProperty);  
 
 # -------------------------------------------------
 # Calculation with large basis set and cheap method
 # -------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basisSets[1]} &{restOfInput}
-Step_End
+StepEnd
 SCF_Y.readProperty(propertyName=cheapSCFProperty);    
 corr_Y.readProperty(propertyName=cheapCorrProperty);  
 

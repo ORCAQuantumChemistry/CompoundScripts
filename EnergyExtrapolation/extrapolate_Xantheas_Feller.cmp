@@ -1,5 +1,6 @@
 # Author : Dimitrios G. Liakos and Frank Neese
 # Date   : June of 2024
+# Update : June of 2025
 #
 # This is a three-point extrapolation scheme to the complete basis set 
 #   limit for the total electronic energy, based on:
@@ -61,28 +62,28 @@ variable E_CBS;             # The CBS energy
 # (Calculation 1)
 # Double zeta calculation 
 # ---------------------------------------------------------------
-New_Step
+NewStep
   !&{method} aug-cc-pVDZ aug-cc-pVDZ/C VeryTightSCF 
   *xyzfile &{charge} &{mult} &{molecule}
-Step_End
+StepEnd
 E_DZ.readProperty(propertyName=myProperty);     
 
 # ---------------------------------------------------------------
 # (Calculation 2)
 # Triple zeta calculation 
 # ---------------------------------------------------------------
-New_Step
+NewStep
   !&{method} aug-cc-pVTZ aug-cc-pVTZ/C VeryTightSCF 
-Step_End
+StepEnd
 E_TZ.readProperty(propertyName=myProperty);       
 
 # ---------------------------------------------------------------
 # (Calculation 3)
 # Quadruple zeta calculation 
 # ---------------------------------------------------------------
-New_Step
+NewStep
   !&{method} aug-cc-pVQZ aug-cc-pVQZ/C VeryTightSCF 
-Step_End
+StepEnd
 E_QZ.readProperty(propertyName=myProperty);     
 
 # ---------------------------------------------------------------
@@ -91,6 +92,7 @@ E_QZ.readProperty(propertyName=myProperty);
 E_CBS = (E_QZ*E_DZ-E_TZ*E_TZ)/(E_QZ+E_DZ-2*E_TZ); 
 
 print("\n\n-------------------------------------------------------\n");
+print("                    EXTRAPOLATION RESULTS            \n");
 print("           extrapolation scheme for total energies   \n");
 print("         Sotiris S. Xantheas’ and Thom H. Dunning, Jr,\n");
 print("               J . Phys. Chem. 1993, 97, 18-19.\n");

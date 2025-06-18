@@ -74,14 +74,14 @@ variable ETOT_X, ETOT_Y, ETOT_CPS;                 # The total energies
 # (Calculation 1)
 # The calculation with the loose TCutPNO
 #--------------------------------------------------------------------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput}
   *xyzfile &{charge} &{mult} &{molecule}
   %MDCI
     TCutPNO &{loose_TCutPNO} 
   End
   # % BASIS auxc "autoaux" autoauxlmax true END
-Step_End
+StepEnd
 E_HF.ReadProperty(propertyName="MDCI_REF_ENERGY");   
 ECORR_X.ReadProperty(propertyName="MDCI_CORR_ENERGY");  
 ETOT_X = E_HF + ECORR_X;
@@ -90,13 +90,13 @@ ETOT_X = E_HF + ECORR_X;
 # (Calculation 2)
 # The calculation with the tight TCutPNO
 #--------------------------------------------------------------------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput}
   %MDCI
     TCutPNO &{tight_TCutPNO} 
   End
   # % BASIS auxc "autoaux" autoauxlmax true END
-Step_End
+StepEnd
 ECORR_Y.readProperty(propertyName="MDCI_CORR_ENERGY");    
 ETOT_Y = E_HF + ECORR_Y;
 

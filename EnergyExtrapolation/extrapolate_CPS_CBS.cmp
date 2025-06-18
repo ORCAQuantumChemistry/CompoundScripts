@@ -119,7 +119,7 @@ Variable  E_Total_CBS_CPS;         # The CBS and CPS extrapolated total energy
 # Calculation with the small basis set and looser TCutPNO
 # (Calculation 1)
 # ------------------------------------------------------------------------------
-New_Step
+NewStep
   !DLPNO-CCSD(T1) &{Small_BS} aug-cc-pVQZ/C VeryTightSCF TightPNO
   *xyzfile &{charge} &{mult} &{molecule}
   %MDCI 
@@ -133,7 +133,7 @@ New_Step
 # Here autoaux module is used. If wanted to use the standard "/C" basis specified 
 # in the simple input line instead, take the %BASIS block in the comment for all 
 # caculations, i.e., Calculations 1 - 4. 
-Step_End
+StepEnd
 #Read the values
 E0_X.readProperty(propertyName="MDCI_REF_ENERGY");   
 E_corr_X_Loose.readProperty(propertyName="MDCI_CORR_ENERGY");  
@@ -143,7 +143,7 @@ E_corr_X_Loose.readProperty(propertyName="MDCI_CORR_ENERGY");
 #Calculation with the small basis set and tighter TCutPNO
 #(Calculation 2)
 # ------------------------------------------------------------------------------
-New_Step
+NewStep
   !DLPNO-CCSD(T1) &{Small_BS} aug-cc-pVQZ/C VeryTightSCF TightPNO
   %MDCI 
     TCutPNO 1e-7 
@@ -153,7 +153,7 @@ New_Step
     auxc "autoaux" 
     autoauxlmax true 
   End
-Step_End
+StepEnd
 #Read the values
 E_corr_X_Tight.readProperty(propertyName="MDCI_CORR_ENERGY"); 
 #
@@ -162,7 +162,7 @@ E_corr_X_Tight.readProperty(propertyName="MDCI_CORR_ENERGY");
 #Calculation with the large basis set and looser TCutPNO
 #(Calculation 3)
 # ------------------------------------------------------------------------------
-New_Step
+NewStep
   !DLPNO-CCSD(T1) &{Large_BS}  aug-cc-pV5Z/C VeryTightSCF TightPNO
   %MDCI 
     TCutPNO 1e-6 
@@ -172,7 +172,7 @@ New_Step
      auxc "autoaux"
      autoauxlmax true 
   End
-Step_End
+StepEnd
 #Read the values
 E0_Y.readProperty(propertyName="MDCI_REF_ENERGY");
 E_corr_Y_Loose.readProperty(propertyName="MDCI_CORR_ENERGY");
@@ -182,7 +182,7 @@ E_corr_Y_Loose.readProperty(propertyName="MDCI_CORR_ENERGY");
 #Calculation with the large basis set and tighter TCutPNO
 #(Calculation 4)
 # ------------------------------------------------------------------------------
-New_Step
+NewStep
 !DLPNO-CCSD(T1) &{Large_BS} aug-cc-pV5Z/C VeryTightSCF TightPNO
   %MDCI
     TCutPNO 1e-7 
@@ -192,7 +192,7 @@ New_Step
      auxc "autoaux"
      autoauxlmax true 
   End
-Step_End
+StepEnd
 #Read the values
 E_corr_Y_Tight.readProperty(propertyName="MDCI_CORR_ENERGY");
 #

@@ -1,5 +1,6 @@
 # Author:  Frank Neese and Dimitrios G. Liakos
 # Date  :  May of 2024 
+# Update:  June of 2025
 # ---------------------------------------------------
 #
 # This is a script that will use compound to extrapolate
@@ -108,19 +109,19 @@ EndIf
 # 3. Copy the initial XYZ file to the one needed
 #    for the external optimizer 
 # -------------------------------------------------
-sys_cmd("cp %s %s_Compound_1_EXT.xyz", Molecule, baseFilename);
+SysCmd("cp %s %s_Compound_1_EXT.xyz", Molecule, baseFilename);
 
 
 # --------------------------------------------------
 # 1. Run the driver ORCA input file that calls the
 #    External optimizer
 # --------------------------------------------------
-New_Step
+NewStep
   !ExtOpt Opt 
   *xyzfile &{charge} &{multiplicity} &{baseFilename}_Compound_1_EXT.xyz
   %method
     ProgExt "./&{driverScriptName}"
   End
-Step_End
+StepEnd
 
 End

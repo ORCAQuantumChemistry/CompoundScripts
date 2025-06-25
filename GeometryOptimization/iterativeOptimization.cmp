@@ -36,10 +36,10 @@ Variable OptDone;
 # Perform a single point calculation. We need it for
 # the initial geometry from the property file
 # -----------------------------------------------------------
-New_Step
+NewStep
   !&{method}
   *xyzfile &{charge} &{mult} &{molecule}
-Step_End
+StepEnd
 myGeom.Read();
 myGeom.WriteXYZFile(filename=myFilename);
 
@@ -51,7 +51,7 @@ For itry From 1 To maxNTries Do
   # Perform a geometry optimization/Frequency calculation
   # --------------------------------------------
   New_Step
-    ! &{method} freq Opt Bohrs
+    ! &{method} freq Opt 
     *xyzfile &{charge} &{mult} &{myFilename}
   Step_End
   res = freqs.readProperty(propertyName = "THERMO_FREQS");

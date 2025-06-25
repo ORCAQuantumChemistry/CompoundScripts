@@ -1,5 +1,6 @@
 # Author:  Frank Neese and Dimitrios G. Liakos
 # Date  :  May of 2024 
+# Update:  June of 2025
 # ---------------------------------------------------
 #
 # This is a script that will use a compound script to 
@@ -73,7 +74,7 @@ if (createDriverScript) then
   write2File(driverScript, "%s %s\n", submitCommand, orcaInputName );
   write2File(driverScript, "cp %s  %s_Compound_1_EXT.engrad\n", engradFilename, baseFilename);
   closeFile(driverScript);
-  sys_cmd("chmod +x %s",driverScriptName);
+  SysCmd("chmod +x %s",driverScriptName);
 EndIf
 
 # ------------------------------------------------
@@ -104,19 +105,19 @@ EndIf
 # 3. Copy the initial XYZ file to the one needed
 #    for the external optimizer 
 # -------------------------------------------------
-sys_cmd("cp %s %s_Compound_1_EXT.xyz", molecule, baseFilename);
+SysCmd("cp %s %s_Compound_1_EXT.xyz", molecule, baseFilename);
 
 
 # --------------------------------------------------
 # 1. Run the driver ORCA input file that calls the
 #    External optimizer
 # --------------------------------------------------
-New_Step
+NewStep
   !ExtOpt Opt 
   *xyzfile &{charge} &{mult} &{baseFilename}_Compound_1_EXT.xyz
   %method
     ProgExt "./&{driverScriptName}"
   End
-Step_End
+StepEnd
 
 End

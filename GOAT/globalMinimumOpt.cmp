@@ -38,14 +38,14 @@ Variable high_opt_basis = "def2-tzvp(-f)";
 
 New_step
   %base "conf_search"
-  ! &{var_goat} &{goat_method} CPCMX(&{solvent})
+  ! &{var_goat} &{goat_method} ddcosmo(&{solvent})
   * xyzfile &{charge} &{multiplicity} &{inputFile}
 Step_end
 
 print("\nStarting low-level optimisation using global minimum structure from GOAT conformational search...\n");
 
 New_step
-  ! opt &{low_opt_method} &{low_opt_basis} SMD(&{solvent}) freq
+  ! opt &{low_opt_method} &{low_opt_basis} SMD(&{solvent}) PModel freq
   %base "low_opt.globalminimum"
   * xyzfile &{charge} &{multiplicity} conf_search.globalminimum.xyz
 Step_end

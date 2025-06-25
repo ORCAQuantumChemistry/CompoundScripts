@@ -1,5 +1,6 @@
 # Author: Dimitrios G. Liakos, Zikuan Wang and Frank Neese
 # Date  : May/June of 2024
+# Edited by James O'Brien, November 2024
 #
 # *************************************** DESCRIPTION ***********************************************
 # iterative Optimization protocol to find structure with no negative
@@ -16,12 +17,12 @@
 # ------ Variables to adjust (e.g. using 'with') -------------------
 Variable molecule ="initial.xyz";
 Variable charge = 0;
-Variable mult   = 2;
+Variable mult   = 1;
 Variable method          = "B3LYP D3 def2-TZVP";
 Variable MaxNTries       =  25;   # Number of maximum tries
 Variable CutOff          = -10.0; # CutOff for a negative frequency
-Variable scaling         = 0.6;   # Scaling factor for normal mode
-Variable NNegativeTarget = 0;     # Number of negative frequencies we allow. For TS optimization, change to 1
+Variable scaling         = 0.25;   # Scaling factor for normal mode (WARNING: large values can cause molecules to "blow up")
+Variable NNegativeTarget = 0;     # Number of negative frequencies wanted. For TS optimization, change to 1
 Variable myFilename      = "xyzInput.xyz";
 # ------------------------------------------------------------------
 # ------            Rest of variables            -------------------

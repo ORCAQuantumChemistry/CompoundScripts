@@ -20,17 +20,18 @@ Variable kw2   = "";            # Additional simple input keywords for step 2
 Variable EwB97MV, EwB97M2;      # Will hold the final energies
 
 # Step 1: wB97M-V calculation to obtain the orbitals
-New_Step
+NewStep
   ! wB97M-V &{NLOpt} &{Grid} &{kw1}
   %basis
     Basis "&{Basis}"
     AuxJ  "&{AuxJ}"
   end
-Step_End
+StepEnd
+EwB97MV.ReadProperty(propertyName="DFT_Total_En");
 
 # Step 2: single iteration with the wB97M(2) functional + MP2 correlation to get the final energy
 ReadMOs(1);
-New_Step
+NewStep
   ! wB97M(2) &{NLOpt} &{Grid} &{kw2} NoIter CalcGuessEnergy
   %basis
     Basis "&{Basis}"
@@ -43,8 +44,7 @@ New_Step
   %mp2 RI &{RIMP2} end
 Step_End
 
-Read EwB97MV = DFT_Total_En[1];
-Read EwB97M2 = MP2_Total_Energy[2];
+EwB97M2.ReadProperty(propertyName="MP2_Total_Energy");
 
 Print("");
 Print("================================================================================\n");

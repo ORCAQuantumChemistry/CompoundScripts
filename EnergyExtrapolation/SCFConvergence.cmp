@@ -1,0 +1,63 @@
+# Author:  Frank Neese
+# Date  :  June of 2025
+#
+#
+# This script calculates the convergence of the SCF energy
+#
+#
+# ---------------------------------------------------------------
+# --------------------  Variables  ------------------------------                
+# ----------   Variables that could be adjusted using 'with'-----
+Variable molecule         = "f2.xyz";
+Variable charge           = 0;
+Variable mult             = 1;
+Variable Basis      = {"cc-pVDZ", "cc-pVTZ", "cc-pVQZ", "cc-pV5Z", "cc-pV6Z"}; 
+Variable Cardinal   = {    2    ,     3    ,     4    ,     5    ,     6    };
+Variable alpha      = {    4.42 ,     5.46 ,     9.19 ,     9.19,      9.19 };
+# -----------------  Rest of variables --------------------------
+Variable Eh2kcal    = 27.2107*23.06;
+Variable EN[Basis.GetSize()];
+Variable Extrap[Basis.GetSize()];
+Variable EX,EY,ExpX,ExpY,X,Y,Eref;
+
+# --------------------------------------------------------------
+#   loop over the number of basis sets, run the calculations
+#     and get the energies
+# --------------------------------------------------------------
+for ibas from 0 to Basis.GetSize()-1 do
+  NewStep
+    ! RHF &{Basis[ibas]}  VeryTightSCF Conv
+    *xyzfile &{charge} &{mult} &{molecule}
+  Stepend
+  EN[ibas].readProperty(propertyName= "JOB_INFO_TOTAL_EN");
+endfor;
+# --------------------------------------------------------------
+#   loop again over the number of basis sets and perform
+#     the relevant extrapolations
+# --------------------------------------------------------------
+for ibas from 0 to Basis.GetSize()-2  do
+  EX       = EN[ibas];
+  EY       = EN[ibas+1];
+  X        = Cardinal[ibas];
+  Y        = Cardinal[ibas+1];
+  ExpX     = exp(-alpha[ibas]*sqrt(X));
+  ExpY     = exp(-alpha[ibas]*sqrt(Y));
+  Extrap[ibas] = (EX*expY-EY*expX)/(ExpY-ExpX);
+endfor;
+Eref = Extrap[Basis.GetSize()-2];
+# --------------------------------------------------------------
+#   Print the results
+# --------------------------------------------------------------
+print(" -------------------------------------------------------\n");
+print("               SCF Energy convergence                   \n");
+print(" -------------------------------------------------------\n");
+print("Reference energy           = %16.12lf\n",Eref);
+for ibas from 0 to Basis.GetSize()-1 do
+  print("Cardinal number %d : Energy = %16.12lf Error= %9.6lf Eh = %9.2lf kcal/mol\n",
+      Cardinal[ibas],EN[ibas],EN[ibas]-Eref,Eh2kcal*(EN[ibas]-Eref));
+endfor; 
+for ibas from 0 to Basis.GetSize()-2 do
+  print("Extrapolation %d/%d : Energy = %16.12lf Error= %9.6lf Eh = %9.2lf kcal/mol\n",
+  Cardinal[ibas],Cardinal[ibas+1],Extrap[ibas],Extrap[ibas]-Eref,Eh2kcal*(Extrap[ibas]-Eref));
+endfor; 
+endrun;

@@ -25,8 +25,8 @@ for iang from 0 to nsteps-1 do
   JobStep  = iang+1;
   JobStep_m= JobStep-1;
   if (iang>0) then
-    Read_Geom(JobStep_m);
-    New_step
+    ReadGeom(JobStep_m);
+    Newstep
       ! &{method} &{basis} TightSCF Opt
       %base "&{JobName}.step&{JobStep}"
       %geom constraints
@@ -36,9 +36,9 @@ for iang from 0 to nsteps-1 do
         end
       end
 
-    Step_End
+    StepEnd
   else
-    New_step
+    Newstep
       ! &{method} &{basis} TightSCF Opt
       %base "&{JobName}.step&{JobStep}"
       %geom constraints
@@ -55,7 +55,7 @@ for iang from 0 to nsteps-1 do
       H 1 2 3 1.06 &{angle} 120.0
       H 1 2 3 1.06 &{angle} 240.0
       *
-    Step_End
+    StepEnd
   endif
    energies[iang].readProperty(propertyName="SCF_ENERGY");
    print(" index: %3d Angle %6.2lf Energy: %16.12lf Eh\n", iang, angle, energies[iang]);

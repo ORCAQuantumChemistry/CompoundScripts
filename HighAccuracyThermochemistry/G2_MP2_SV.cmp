@@ -1,5 +1,6 @@
 # Authors: Dimitrios G. Liakos and Frank Neese 
 # Revised: June of 2024
+# Revised: June of 2025
 #
 # This is a compound script that implements the 
 #  G2(MP2, SV) composite method by L. A. Curtiss et al.
@@ -59,10 +60,10 @@ Variable nAtoms = 0;
 # (Calculation 1) Do a single point HF Calculation
 # the ZPE correction from HF 
 # ---------------------------------------------------------------
-New_Step
+NewStep
   ! HF 6-31G(d) VeryTightSCF
   *xyzfile &{charge} &{mult} &{molecule}
-Step_End
+StepEnd
 myGeom.Read();
 nAtoms = myGeom.GetNumOfAtoms();
 if (nAtoms = 1) then
@@ -77,43 +78,41 @@ endIf
 # optimize and get the ZPE correction from HF 
 # ---------------------------------------------------------------
 if (isMolecule) then
-  New_Step
+  NewStep
     ! HF 6-31G(d) VeryTightSCF TightOpt Freq
-  STEP_END
+  StepEnd
   ZPE.readProperty(propertyName="THERMO_ZPE");
 else
   ZPE = 0.0;
 endIf
 ZPEScaled  = Scale*ZPE;
 
-
 # ---------------------------------------------------------------
 # (Calculation 3)
 # First optimize at the MP2 level with 6-31G(d) 
 # ---------------------------------------------------------------
 if (isMolecule) then
-  New_Step
+  NewStep
     ! MP2 6-31G(d) TightOpt NoFrozenCore VeryTightSCF
-  STEP_END
+  StepEnd
 endIf
-
 
 # ---------------------------------------------------------------
 # (Calculation 4)
 # The MP2 correlation energy with 6-31G
 # ---------------------------------------------------------------
-New_Step
+NewStep
   !MP2 6-31G
-Step_End
+StepEnd
 ESmallMP2.readProperty(propertyName="MP2_Total_Energy");
 
 # ---------------------------------------------------------------
 # (Calculation 5)
 # The MP2 correlation energy 6-311+G(3df,2p). 
 # ---------------------------------------------------------------
-New_Step
+NewStep
   !MP2 6-311+G(3df,2p)
-Step_End
+StepEnd
 EBigMP2.readProperty(propertyName="MP2_Total_Energy");
 
 # ---------------------------------------------------------------
@@ -125,9 +124,9 @@ DEMP2 = EBigMP2 - ESmallMP2;
 # (Calculation 6)
 # The total QCISD(T) energy with 6-31G 
 # ---------------------------------------------------------------
-New_Step
-!QCISD(T) 6-31G
-Step_End
+NewStep
+  !QCISD(T) 6-31G
+StepEnd
 EQCISDT.readProperty(propertyName="MDCI_Total_Energy");
 
 # --------------------------------------------------------------
@@ -175,5 +174,4 @@ print(" HLC            :    %18.10lf\n", HLC);
 print(" Final En       :    %18.10lf\n", FinalEnergy);
 print(" ------------------------------------------------------------\n\n");
 
-
-END
+EndRun

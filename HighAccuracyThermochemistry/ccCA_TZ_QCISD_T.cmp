@@ -1,5 +1,6 @@
 # Authors: Dimitrios G. Liakos and Frank Neese 
 # Revised: June of 2024
+# Revised: June of 2025
 #
 #
 #   This is the ccCA-TZ-QCISD(T) scheme by N. J. DeYonker, 
@@ -63,15 +64,14 @@ variable isMolecule = true;
 Geometry myGeom;
 Variable nAtoms = 0;
 
-
 # -------------------------------------------------------------
 # (Calculation 1)
 # Single point calculation using B3LYP/6-31G*
 # ------------------------------------------------------------- 
-New_Step
+NewStep
   !B3LYP 6-31G* VeryTightSCF DefGrid3
   *xyzfile &{charge} &{mult} &{molecule}
-STEP_END
+StepEnd
 myGeom.Read();
 nAtoms = myGeom.GetNumOfAtoms();
 if (nAtoms = 1) then
@@ -81,15 +81,14 @@ else
   print("We are working with a molecule\n");
 endIf
 
-
 # -------------------------------------------------------------
 # (Calculation 2)  If we are working with a molecule then
 # optimize the geometry and get the  ZPE 
 # -------------------------------------------------------------
 if (isMolecule) then
-  New_Step
+  NewStep
     !B3LYP 6-31G* VeryTightSCF Opt Freq DefGrid3
-  STEP_END
+  StepEnd
   ZPE.readProperty(propertyName="THERMO_ZPE");
 else
   ZPE = 0.0;
@@ -100,19 +99,18 @@ ZPEScaled  = Scale*ZPE;
 # (Calculation 3)
 # QCISD(T)/cc-pVTZ Reference energy
 # -------------------------------------------------------------
-New_Step
+NewStep
   !QCISD(T) cc-pVTZ VeryTightSCF
-STEP_END
+StepEnd
 ERef.ReadProperty(propertyName="MDCI_TOTAL_ENERGY"); 
-
 
 # -------------------------------------------------------------
 # (Calculation 4)
 # QCISD(T)/aug-cc-pVTZ EPlus
 # -------------------------------------------------------------
-New_Step
+NewStep
   !QCISD(T) aug-cc-pVTZ VeryTightSCF
-STEP_END
+StepEnd
 EPlus.ReadProperty(propertyName="MDCI_TOTAL_ENERGY");
 
 # -------------------------------------------------------------
@@ -125,11 +123,10 @@ DEPlus = EPlus - ERef;
 # QCISD(T)/cc-pVQZ EPol
 # -------------------------------------------------------------
 # DE polarization
-New_Step
+NewStep
   !QCISD(T) cc-pVQZ VeryTightSCF
-STEP_END
+StepEnd
 EPol.ReadProperty(propertyName="MDCI_Total_Energy"); 
-
 
 # -------------------------------------------------------------
 # Evaluate Polarization correction DEPol
@@ -140,18 +137,18 @@ DEPol = EPol - ERef;
 # (Calculation 6)
 # MP2/NoFrozenCore/aug-cc-pCVTZ
 # -------------------------------------------------------------
-New_Step
+NewStep
   !MP2 NoFrozenCore aug-cc-pCVTZ VeryTightSCF
-STEP_END
+StepEnd
 EMP2Full.readProperty(propertyName="MP2_TOTAL_ENERGY"); 
 
 # -------------------------------------------------------------
 # (Calculation 7)
 # MP2/Frozen Core/aug-cc-pVTZ
 # -------------------------------------------------------------
-New_Step
+NewStep
   !MP2 aug-cc-pVTZ VeryTightSCF
-STEP_END
+StepEnd
 EMP2FC.readProperty(propertyName="MP2_TOTAL_ENERGY"); 
 
 # -------------------------------------------------------------

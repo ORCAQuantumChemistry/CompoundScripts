@@ -1,5 +1,6 @@
 # Authors: Dimitrios G. Liakos and Frank Neese 
 # Revised: June of 2024
+# Revised: June of 2025
 #
 #
 #   This is the ccCA-CBS-1 scheme by N. J. DeYonker, 
@@ -77,10 +78,10 @@ Variable nAtoms = 0;
 # (Calculation 1)
 # Single point calculation using B3LYP/6-31G*
 # ------------------------------------------------------------- 
-New_Step
+NewStep
   !B3LYP 6-31G* VeryTightSCF DefGrid3
   *xyzfile &{charge} &{mult} &{molecule}
-STEP_END
+StepEnd
 myGeom.Read();
 nAtoms = myGeom.GetNumOfAtoms();
 if (nAtoms = 1) then
@@ -90,15 +91,14 @@ else
   print("We are working with a molecule\n");
 endIf
 
-
 # -------------------------------------------------------------
 # (Calculation 2)  If we are working with a molecule then
 # optimize the geometry and get the  ZPE 
 # -------------------------------------------------------------
 if (isMolecule) then
-  New_Step
+  NewStep
     !B3LYP 6-31G* VeryTightSCF Opt Freq DefGrid3
-  STEP_END
+  StepEnd
   ZPE.readProperty(propertyName="THERMO_ZPE");
 else
   ZPE = 0.0;
@@ -109,27 +109,27 @@ ZPEScaled  = Scale*ZPE;
 # (Calculation 3)
 # MP2 Energy with aug-cc-pVDZ (for CBS reference energy)
 # -------------------------------------------------------------
-New_Step
+NewStep
  !MP2 aug-cc-pVDZ VeryTightSCF
-STEP_END
+StepEnd
 EMP2_aDZ.readProperty(propertyName="MP2_TOTAL_ENERGY");
 
 # -------------------------------------------------------------
 # (Calculation 4)
 # MP2 Energy with aug-cc-pVTZ (for CBS reference energy)
 # -------------------------------------------------------------
-New_Step
+NewStep
  !MP2 aug-cc-pVTZ VeryTightSCF
-STEP_END
+StepEnd
 EMP2_aTZ.readProperty(propertyName="MP2_TOTAL_ENERGY");
 
 # --------------------------------------------------------------
 # (Calculation 5)
 # MP2 Energy with aug-cc-pVQZ (for CBS reference energy)
 # --------------------------------------------------------------
-New_Step
+NewStep
  !MP2 aug-cc-pVQZ VeryTightSCF
-STEP_END
+StepEnd
 EMP2_aQZ.readProperty(propertyName="MP2_TOTAL_ENERGY");
 
 # --------------------------------------------------------------
@@ -142,19 +142,18 @@ ERef = (e*EMP2_aTZ-EMP2_aDZ + D*(-exp(-1)*EMP2_aTZ+EMP2_aQZ))/((e-1)-D*(exp(-1)-
 # (Calculation 6)
 # MP2 Energy with cc-pVTZ (for QCISD(T) correction) 
 # --------------------------------------------------------------
-New_Step
+NewStep
   !MP2 cc-pVTZ VeryTightSCF
-STEP_END
+StepEnd
 EMP2_TZ.readProperty(propertyName="MP2_TOTAL_ENERGY");
-
 
 # --------------------------------------------------------------
 # (Calculation 7)
 # QCISD(T) Energy with cc-pVTZ (for QCISD(T) correction
 # --------------------------------------------------------------
-New_Step
+NewStep
   !QCISD(T) cc-pVTZ VeryTightSCF
-STEP_END
+StepEnd
 EQCISDT_TZ.readProperty(propertyName="MDCI_TOTAL_ENERGY");
 
 # --------------------------------------------------------------
@@ -167,9 +166,9 @@ DE_QCI = EQCISDT_TZ - EMP2_TZ;
 # (Calculation 8)
 # MP2 Full
 # --------------------------------------------------------------
-New_Step
+NewStep
   !MP2 NoFrozenCore aug-cc-pCVTZ VeryTightSCF
-STEP_END
+StepEnd
 EMP2Full.readProperty(propertyName="MP2_TOTAL_ENERGY");
 
 # --------------------------------------------------------------
@@ -183,7 +182,6 @@ DECV = EMP2Full - EMP2_aTZ;
 # FinalEnergy = ERef + ZPEScaled + DE_QCI + DECV;
 # --------------------------------------------------------------
 FinalEnergy = ERef + ZPEScaled + DE_QCI + DECV;
-
 
 print("\n\n-------------------------------------------------------\n");
 print("           ccCA-CBS-2 composite scheme by:   \n");

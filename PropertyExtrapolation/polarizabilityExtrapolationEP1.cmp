@@ -1,5 +1,6 @@
-#   Author: Dimitrios G. Liakos and Frank Neese
-#   Date  : June of 2024
+#   Author  : Dimitrios G. Liakos and Frank Neese
+#   Date    : June of 2024
+#   Revised : June of 2025
 #
 #   This is a compound file that extrapolates the
 #   polarizability to Complete Basis Set Limit (CBS).
@@ -125,11 +126,11 @@ write2File(fptr, "molecule,method,extrapolate,basisSet,density,raw_axx,raw_axy,r
 # -------------------------------------------------------------------
 # Step 1. SCF Calculation with small basis set (X)
 # -------------------------------------------------------------------
-New_Step
+NewStep
   ! HF &{LowerBasis} &{restOfInput}
   *xyzfile &{charge} &{multiplicity} &{Molecule}
   &{blocksInput}
-Step_end
+StepEnd
 scfEnX.readProperty(propertyName="SCF_Energy");
 scfPolX.readProperty(propertyName=myProperty, Property_Base=true);
 scfPolX.Diagonalize(eigenVal, eigenVec);
@@ -141,10 +142,10 @@ write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf
 # Step2. Correlation Calculation with small basis set (X)
 # -------------------------------------------------
 if (addCorrelation) then
-  New_Step
+  NewStep
     ! &{method} &{LowerBasis} &{restOfInput}
     &{blocksInput}
-  Step_end
+  StepEnd
   scfEnX.readProperty(propertyName=scfEnPropName);
   corrEnX.readProperty(propertyName=corrEnPropName);
   totalPolX.readProperty(propertyName=myProperty, Property_Base=true);
@@ -167,10 +168,10 @@ EndIf
 # -------------------------------------------------
 # Step4. SCF Calculation with large basis set (Y)
 # -------------------------------------------------
-New_Step
+NewStep
   !HF &{UpperBasis} &{restOfInput}
   &{blocksInput}
-Step_End
+StepEnd
 scfEnY.readProperty(propertyName="SCF_Energy");
 scfPolY.readProperty(propertyName=myProperty, Property_Base=true);
 scfPolY.Diagonalize(eigenVal, eigenVec);
@@ -182,10 +183,10 @@ write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf
 # Step5. Correlation calculation with large basis set (Y)
 # -------------------------------------------------
 if (addCorrelation) then
-  New_Step
+  NewStep
     ! &{method} &{UpperBasis} &{restOfInput}
     &{blocksInput}
-  Step_end
+  StepEnd
   scfEnY.readProperty(propertyName=scfEnPropName);
   corrEnY.readProperty(propertyName=corrEnPropName);
   totalPolY.readProperty(propertyName=myProperty, Property_Base=true);

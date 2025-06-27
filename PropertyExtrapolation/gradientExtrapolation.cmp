@@ -1,5 +1,6 @@
-#   Author: Dimitrios G. Liakos and Frank Neese
-#   Date  : May of 2024
+#   Author  : Dimitrios G. Liakos and Frank Neese
+#   Date    : May of 2024
+#   Revised : June of 2025
 #
 #   This is a compound file that extrapolates the
 #   energy gradients to Complete Basis Set Limit (CBS).
@@ -77,12 +78,12 @@ Variable Cartesians, AtomicNumbers;
 # -------------------------------------------------------------------
 # Step 1. SCF Calculation with small basis set (X)
 # -------------------------------------------------------------------
-New_Step
+NewStep
   ! HF &{LowerBasis} &{restOfInput}
   *xyzfile &{charge} &{multiplicity} &{Molecule}
-Step_end
-res = scfEnX.readProperty(propertyName="SCF_Energy");
-res = scfGradX.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
+StepEnd
+scfEnX.readProperty(propertyName="SCF_Energy");
+scfGradX.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
 myGeom.Read();
 nAtoms = myGeom.GetNumOfAtoms();
 
@@ -99,9 +100,9 @@ Variable totalGradCBS[3*nAtoms];# CBS estimation of total gradient
 # Step3. Correlation Calculation with small basis set (X)
 # -------------------------------------------------
 if (addCorrelation) then
-  New_Step
+  NewStep
     ! &{method} &{LowerBasis} &{restOfInput}
-  Step_end
+  StepEnd
   res = scfEnX.readProperty(propertyName=scfEnPropName);
   res = corrEnX.readProperty(propertyName=corrEnPropName);
   res = totalGradX.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
@@ -115,22 +116,22 @@ EndIf
 # -------------------------------------------------
 # Step4. SCF Calculation with large basis set (Y)
 # -------------------------------------------------
-New_Step
+NewStep
   !HF &{UpperBasis} &{restOfInput}
-Step_End
-res = scfEnY.readProperty(propertyName="SCF_Energy");
-res = scfGradY.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
+StepEnd
+scfEnY.readProperty(propertyName="SCF_Energy");
+scfGradY.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
 
 # -------------------------------------------------
 # Step5. Correlation calculation with large basis set (Y)
 # -------------------------------------------------
 if (addCorrelation) then
-  New_Step
+  NewStep
     ! &{method} &{UpperBasis} &{restOfInput}
-  Step_end
-  res = scfEnY.readProperty(propertyName=scfEnPropName);
-  res = corrEnY.readProperty(propertyName=corrEnPropName);
-  res = totalGradY.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
+  Stepend
+  scfEnY.readProperty(propertyName=scfEnPropName);
+  corrEnY.readProperty(propertyName=corrEnPropName);
+  totalGradY.readProperty(propertyName="Nuclear_Gradient", Property_Base=true);
 
   # -------------------------------------------------
   # Evaluate correlation gradient with big basis set Y
@@ -172,7 +173,6 @@ if (addCorrelation) then
   # -------------------------------------------------
   totalGradCBS = mat_p_mat( 1, scfGradCBS, 1, corrGradCBS);
 EndIf
-
 
 # -------------------------------------------------
 # Step8. Present the results
@@ -272,14 +272,14 @@ EndFor
 
 if (addCorrelation) then
   print( "----------------------------------------------------------------\n");
-  print( "Correlation Gradient with basis set:\n" );
+  print( "Extrapolated Correlation part of the Gradient:\n" );
   print( "----------------------------------------------------------------\n");
   print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
   for i from 0 to nAtoms-1 Do
     print("%4d     %20lf     %20lf     %20lf\n", i, corrGradCBS[3*i], corrGradCBS[3*i+1], corrGradCBS[3*i+2]);
   EndFor
   print( "----------------------------------------------------------------\n");
-  print( "Total Gradient with basis set:\n" );
+  print( "Total Extrapolated Gradient:\n" );
   print( "----------------------------------------------------------------\n");
   print( "Atom     %20s     %20s     %20s\n", "X", "Y", "Z");
   for i from 0 to nAtoms-1 Do
@@ -321,4 +321,4 @@ if (produceEnGradFile) then
 
 EndIf
 
-End
+EndRun

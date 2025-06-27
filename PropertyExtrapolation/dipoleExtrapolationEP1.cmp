@@ -1,5 +1,6 @@
-#   Author: Dimitrios G. Liakos and Frank Neese
-#   Date  : October of 2024
+#   Author  : Dimitrios G. Liakos and Frank Neese
+#   Date    : October of 2024
+#   Revised : June of 2025
 #
 #   This is a compound file that extrapolates the
 #   dipole moment to the Complete Basis Set Limit (CBS).
@@ -122,11 +123,11 @@ write2File(fptr, "molecule,method,extrapolate,basisSet,density,dx,dy,dz,magnitud
 # -------------------------------------------------------------------
 # Step 1. SCF Calculation with small basis set (X)
 # -------------------------------------------------------------------
-New_Step
+NewStep
   ! HF &{LowerBasis} &{restOfInput}
   *xyzfile &{charge} &{multiplicity} &{Molecule}
   &{blocksInput}
-Step_end
+StepEnd
 scfEnX.readProperty(propertyName="SCF_Energy");
 scfDX.readProperty(propertyName=myProperty, Property_Base=true);
 magnitude = sqrt(scfDX[0]^2+scfDX[1]^2+scfDX[2]^2);
@@ -136,10 +137,10 @@ write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
 # Step2. Correlation Calculation with small basis set (X)
 # -------------------------------------------------
 if (addCorrelation) then
-  New_Step
+  NewStep
     ! &{method} &{LowerBasis} &{restOfInput}
     &{blocksInput}
-  Step_end
+  StepEnd
   scfEnX.readProperty(propertyName=scfEnPropName);
   corrEnX.readProperty(propertyName=corrEnPropName);
   totalDX.readProperty(propertyName=myProperty, Property_Base=true);
@@ -158,10 +159,10 @@ EndIf
 # -------------------------------------------------
 # Step4. SCF Calculation with large basis set (Y)
 # -------------------------------------------------
-New_Step
+NewStep
   !HF &{UpperBasis} &{restOfInput}
   &{blocksInput}
-Step_End
+StepEnd
 scfEnY.readProperty(propertyName="SCF_Energy");
 scfDY.readProperty(propertyName=myProperty, Property_Base=true);
 magnitude = sqrt(scfDY[0]^2+scfDY[1]^2+scfDY[2]^2);
@@ -172,10 +173,10 @@ write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
 # Step5. Correlation calculation with large basis set (Y)
 # -------------------------------------------------
 if (addCorrelation) then
-  New_Step
+  NewStep
     ! &{method} &{UpperBasis} &{restOfInput}
     &{blocksInput}
-  Step_end
+  StepEnd
   scfEnY.readProperty(propertyName=scfEnPropName);
   corrEnY.readProperty(propertyName=corrEnPropName);
   totalDY.readProperty(propertyName=myProperty, Property_Base=true);
@@ -230,7 +231,7 @@ if (addCorrelation) then
     dY = corrDY[i];
 
     corrDCBS[i] = (LowerCardinal^(beta)*dX-(UpperCardinal)^(beta)*dY)/denominator;
-  endFor
+  EndFor
   magnitude = sqrt(corrDCBS[0]^2+corrDCBS[1]^2+corrDCBS[2]^2);
   write2File(fptr,"%s,%s,%s,%s,%s,%.12lf,%.12lf,%.12lf,%.12lf,%.12lf\n",
      molecule,"corr","EP1",UpperBasis,density,corrDCBS[0],corrDCBS[1],corrDCBS[2],magnitude,corrEnCBS);
@@ -331,4 +332,4 @@ if (DoPython) then
   closeFile(fPtr);
   sys_cmd("python3 %s", pythonFilename);
 EndIf
-End
+EndRun

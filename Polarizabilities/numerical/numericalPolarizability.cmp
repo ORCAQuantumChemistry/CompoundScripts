@@ -1,5 +1,6 @@
-# Authors: Dimitrios G. Liakos / Frank Neese / Zikuan Wang
-# Date   : May of 2024
+# Authors   : Dimitrios G. Liakos / Frank Neese / Zikuan Wang
+# Date      : May of 2024
+# Revisited : June of 2025
 #
 # This is a compound script that calculates the
 #  dipole-dipole polarizability tensor numerically
@@ -41,11 +42,11 @@ Variable aEigenValues, aEigenVectors;
 # -----------------------------------------
 # Calculation without field
 # -----------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput}
   &{blocksInput}
   *xyzfile &{charge} &{mult} &{molecule}
-Step_End
+StepEnd
 EFree.ReadProperty(propertyName=enPropName);
 
 # ------------------------------------------------------------
@@ -97,49 +98,49 @@ for i from 0 to 2 Do
     # The plus_plus (++) one  
     # ----------------------------------------
     ReadMOs(1);
-    New_Step
+    NewStep
       !&{method} &{basis} &{restOfInput}
       %SCF
         EField = &{FFieldStringPlusPlus}
       End
       &{blocksInput}
-    Step_End
+    StepEnd
     EPlusPlus.readProperty(propertyName=enPropName);
     # ----------------------------------------
     # The plus_minus (+-) one
     # ----------------------------------------
     ReadMOs(1);
-    New_Step
+    NewStep
       !&{method} &{basis} &{restOfInput}
        %SCF
         EField = &{FFieldStringPlusMinus}
       End
       &{blocksInput}
-    Step_End
+    StepEnd
     EPlusMinus.readProperty(propertyName=enPropName);
     # ----------------------------------------
     # The minus_plus (-+) one  
     # ----------------------------------------
     ReadMOs(1);
-    New_Step
+    NewStep
       !&{method} &{basis} &{restOfInput}
       %SCF
         EField = &{FFieldStringMinusPlus}
       End
       &{blocksInput}
-    Step_End
+    StepEnd
     EMinusPlus.readProperty(propertyName=enPropName);
     # ----------------------------------------
     # And the minus_minus (--) one
     # ----------------------------------------
     ReadMOs(1);
-    New_Step
+    NewStep
       !&{method} &{basis} &{restOfInput}
        %SCF
         EField = &{FFieldStringMinusMinus}
       End      
       &{blocksInput}
-    Step_End
+    StepEnd
     EMinusMinus.readProperty(propertyName=enPropName); 
  
     a[i][j] = -(EPlusPlus-EPlusMinus-EMinusPlus+EMinusMinus)/(4*E_Field*E_Field);
@@ -201,8 +202,8 @@ print("\n\n");
 #  Maybe remove unneccesary files
 # ---------------------------------------------------
 if (removeFiles) then
-  sys_cmd("rm *_Compound_* *.bas* ");
+  SysCmd("rm *_Compound_* *.bas* ");
 EndIf
 #
-End
+EndRun
 

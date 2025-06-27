@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------
 # Authors: Dimitrios G. Liakos and Frank Neese
 # Date   : March-May of 2024
+# Revised: June of 2025
 #
 # This is a compound script that calculates the 
 #  raw porarizability tensor semi-numerically 
@@ -49,11 +50,11 @@ Variable res = -1;
 # ----------------------------------------------------------------------
 # Field Free 
 # ----------------------------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput}
   &{blocksInput}
   *xyzFile &{charge} &{mult} &{molecule}
-Step_End
+StepEnd
 D_Free.readProperty(propertyName=myProperty, property_Base=true);
 
 # ------------------------------------------------------------------
@@ -76,26 +77,26 @@ for direction from 0 to 2 Do
   # First the plus (+) one  
   # ----------------------------------------
   ReadMOs(1);
-  New_Step
+  NewStep
     !&{method} &{basis} &{restOfInput}
     %SCF 
       EField = &{FFieldStringPlus} 
     End
     &{blocksInput}
-  Step_End
+  StepEnd
   D_Plus.readProperty(propertyName="Dipole_moment_total", property_Base=true);
   # ----------------------------------------
   # And the minus (-) one
   # ----------------------------------------
   ReadMOs(1);
-  New_Step
+  NewStep
     !&{method} &{basis} &{restOfInput}
     %SCF 
       EField = &{FFieldStringMinus} 
     End
     &{blocksInput}
-  Step_End
-  res = D_Minus.readProperty(propertyName=myProperty, property_Base=true);
+  StepEnd
+  D_Minus.readProperty(propertyName=myProperty, property_Base=true);
   # ------------------------------------------
   # Construct and store SCF polarizability
   # ------------------------------------------
@@ -155,7 +156,7 @@ print( "\n a isotropic value : %.5lf\n", (aEigenValues[0]+aEigenValues[1]+aEigen
 #  Maybe remove unneccesary files
 # ---------------------------------------------------
 if (removeFiles) then
-  sys_cmd("rm *_Compound_* *.bas* ");
+  SysCmd("rm *_Compound_* *.bas* ");
 EndIf
 
-End
+EndRun

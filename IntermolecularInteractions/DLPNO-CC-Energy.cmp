@@ -1,5 +1,6 @@
 # Creator:  Giovanni Bistoni, January 2022
 # Updated:  Dimitrios G. Liakos and Frank Neese June of 2024
+# Revised:  June of 2025
 #
 #
 # This is a composite scheme for accurate calculation of hydrogen 
@@ -12,7 +13,7 @@
 #   correction at the same level of theory and finaly calculation
 #   of the electronic energy using DLPNO-CCSD(T1)/aug-cc-pWCV5Z
 # 
-# #  In the current implementation we perform the following steps:
+#   In the current implementation we perform the following steps:
 #
 #  Step 1. A Geometry optimization using B3LYP-D3(BJ)/def2-QZVPP.
 #          Get the geometry
@@ -42,43 +43,39 @@ variable DLPNO_RI_basis_set = "aug-cc-pwCV5Z/C";
 variable ZPE;      # The ZPE energy
 variable E_Elec;   # The DLPNO Electronic energy
 variable E_Total;  # The Total energy
-#
-#
+
 # ----------------------------------------------------------
 # (Calculation 1)
 # Optimization of the geometry
 # ----------------------------------------------------------
-New_Step
+NewStep
   ! &{functional} &{DFT_basis_set} Opt D3BJ TightSCF 
   *xyzfile &{charge} &{mult} &{molecule}
-STEP_END
-#
+StepEnd
+
 # ----------------------------------------------------------
 # (Calculation 2)
 # Calculation of vibrational frequencies and ZPE
 # ----------------------------------------------------------
-New_Step
+NewStep
   ! &{functional} &{DFT_basis_set} Freq D3BJ TightSCF 
-Step_End
+StepEnd
 ZPE.readProperty(propertyName="THERMO_ZPE");
-#    
-#
+    
 # ----------------------------------------------------------
 # (Calculation 3)
 # Accurate electronic energy using DLPNO-CCSD(T)
 # ----------------------------------------------------------
-New_Step
+NewStep
   !DLPNO-CCSD(T1) &{DLPNO_basis_set} &{DLPNO_RI_basis_set} TightSCF
-STEP_END
+StepEnd
 E_Elec.readProperty(propertyName="MDCI_TOTAL_ENERGY");   
-#
-#
+
 # --------------------------------------------------------------
 # Sum up the terms to get the final energy
 # FinalEnergy = E_Elec + ZPE;
 # --------------------------------------------------------------
 E_Total = E_Elec + ZPE;               
-#
 #
 # ----------------------------------------------------------
 # Printing of the results

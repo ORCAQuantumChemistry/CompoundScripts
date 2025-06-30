@@ -1,6 +1,7 @@
 # Creator: Miquel Garcia-Rates
 # Update : Dimitrios G. Liakos (June of 2024)
-##
+# Revised: June of 2025
+#
 # This protocol computes the solvation energy in a solvent.
 #
 # For a reference to the methodology please refer to:
@@ -62,28 +63,26 @@ Variable DE_El_Hartree, DE_El_Kcal;       # Solvation energies in Harrtee and kc
 # ----------------------------------------------------------------
 # Optimization in vacuum
 # ----------------------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput} 
   *xyzfile &{charge} &{mult} &{molecule}
   %base "vacuumGeometry" 
-Step_End
+StepEnd
 E_vac.readProperty(propertyName="SCF_ENERGY");         
 vdw_vac.readProperty(propertyName="VDW_CORRECTION");   
-#
-#
+
 # ----------------------------------------------------------------
 # Optimization in solvent
 # ----------------------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} CPCM(&{mySolvent})
   * xyzfile &{charge} &{mult} vacuumGeometry.xyz
   %cpcm
     surfacetype vdw_gaussian
   End
-STEP_END
+StepEnd
 E_solv.readProperty(propertyName="SCF_ENERGY");        
 vdw_solv.readProperty(propertyName="VDW_CORRECTION");  
-#
 #
 # ----------------------------------------------------------------
 # Now evaluate the difference

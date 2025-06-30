@@ -1,5 +1,6 @@
 # Creator: Miquel Garcia-Rates
 # Update : Dimitrios G. Liakos (June of 2024)
+# Revised: June of 2025
 #
 # The protocole calculates how the dipole moment changes when solvating a solute.
 # for this it calculates the ratio of the dipole moment in vacuum to the dipole 
@@ -52,27 +53,25 @@ Variable ratio;              # ratio of dipole moments
 # ----------------------------------------------------------------
 # Optimization in vacuum
 # ----------------------------------------------------------------
-New_Step
+NewStep
   ! &{method} &{basis} &{restOfInput} 
   *xyzfile &{charge} &{mult} &{molecule} 
   %base "vacuumGeometry" 
-Step_End
-d_vac.readProperty(propertyName="SCF_DIPOLE_MAGNITUDE_DEBYE");   
-#
+StepEnd
+d_vac.readProperty(propertyName="SCF_DIPOLE_MAGNITUDE");   
 
 # ----------------------------------------------------------------
 # Second step: Optimization in solvent
 # ----------------------------------------------------------------
-New_Step
+NewStep
   !&{method} &{basis} &{restOfInput} CPCM(&{mySolvent})
   * xyzfile &{charge} &{mult} vacuumGeometry.xyz
   %cpcm
     surfacetype vdw_gaussian
   End
-STEP_END
-d_solv.readProperty(propertyName="SCF_DIPOLE_MAGNITUDE_DEBYE");   
+StepEnd
+d_solv.readProperty(propertyName="SCF_DIPOLE_MAGNITUDE");   
 
-#
 # ----------------------------------------------------------------
 # Now evaluate the ratio
 # ----------------------------------------------------------------

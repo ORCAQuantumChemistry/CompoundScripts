@@ -1,5 +1,6 @@
 # Creator: Dimitrios Manganas
 # Update : Dimitrios G. Liakos (June of 2024)
+# Revised: June of 2025
 #
 #
 # This protocol computes X-ray Absorption spectra at the MREOM level
@@ -78,16 +79,16 @@ Variable CASBasename = "CASWavefunction";
 # ------------------------------------------------------
 # Creation of orbitals (DFT-MOs/QROs)
 # ------------------------------------------------------
-New_Step
+NewStep
   !BP86 DKH2 &{basis} def2/J UNO
   *xyzfile &{charge} &{mult} &{molecule}
   %base "&{DFTBasename}"
-Step_End
+StepEnd
 
 # ------------------------------------------------------
 # Creation of orbitals (SA-CASSCF)
 # ------------------------------------------------------
-New_Step
+NewStep
   !MORead DKH2 &{basis} def2-SVP/C
   %base "&{CASBasename}"
   %MOInp "&{DFTBasename}.qro"
@@ -99,12 +100,12 @@ New_Step
     Maxiter 200
     Switchstep nr
   End
-Step_End
+StepEnd
 
 # ------------------------------------------------------
 # Third step: Actual calculation of MREOM-XAS spectra
 # ------------------------------------------------------
-New_Step
+NewStep
   !MR-EOM MORead DKH2 &{basis} def2-SVP/C NEVPT2
   %MOInp "&{CASBasename}.gbw"
   %rel
@@ -151,8 +152,8 @@ New_Step
       DTensor false
     End
   End
-Step_End
+StepEnd
 
-SYS_CMD("orca_mapspc %s.out SOCABS -x0700 -x1900 -w0.5 -eV -n10000", runBasename); 
+SysCmd("orca_mapspc %s.out SOCABS -x0700 -x1900 -w0.5 -eV -n10000", runBasename); 
 
 EndRun

@@ -1,5 +1,6 @@
 # Creator: Dimitrios Manganas
 # Update : Dimitrios G. Liakos (June of 2024)
+# Revised: June of 2025
 #
 #
 # This protocol computes 1-shell Ab Initio Ligand Field Theory (AILFT)
@@ -49,12 +50,11 @@ Variable ActOrbs    = "DOrbs";
 Variable myBasename = "GuessWaveFunction" ;
 #Variable LFTCase = "3d4s";
 
-
 # -------------------------------------------------
 # Creation of orbitals (SA-CASSCF)
 # -------------------------------------------------
 # (Calculation 1)
-New_Step
+NewStep
   !DKH &{basis} def2-SVP/C 
   *xyzfile &{charge} &{mult} &{molecule}
   %base "&{myBasename}"
@@ -64,12 +64,12 @@ New_Step
     Mult   &{Mult1},   &{Mult2} 
     NRoots &{NRoots1}, &{NRoots2} 
   End
-Step_End
+StepEnd
 
 # -------------------------------------------------
 # Second step: Actual calculation of AILFT parameters
 # -------------------------------------------------
-New_Step
+NewStep
   !NoIter MOREAD DKH2 &{basis} def2-SVP/C NEVPT2
   %MOInp "&{myBasename}.gbw"
   %CASSCF
@@ -83,5 +83,5 @@ New_Step
       DoSOC True
     End
   End
-Step_End
+StepEnd
 End

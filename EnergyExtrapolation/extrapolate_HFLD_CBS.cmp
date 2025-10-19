@@ -52,6 +52,7 @@
 #
 #
 #Define some variables
+Variable  molecule="water.xyz";    #The xyz file to work with
 Variable  Small_BS="aug-cc-pVTZ";  #The smaller basis set used in the extrapolation
 Variable  Large_BS="aug-cc-pVQZ";  #The larger basis set used in the extrapolation
 Variable  CBS="CBS(3/4)";          #CBS-extrapolated result
@@ -80,13 +81,14 @@ New_Step
 !HFLD aug-cc-pVTZ RIJK aug-cc-pVTZ/JK aug-cc-pVQZ/C VeryTightSCF TightPNO
 % MDCI TCutPNO 1e-8 printlevel 3 END
 % BASIS auxjk "autoaux" auxc "autoaux" autoauxlmax true END
+*xyzfile 0 1 &{molecule}
 # Here autoaux module is used. If wanted to use the standard "/C" basis specified 
 # in the simple input line instead, take the %BASIS block in the comment for both 
 # caculations. 
 Step_End
 #Read the values
-Read E_SCF_X       = SCF_ENERGY[1];
-Read E_Total_X     = JOB_INFO_TOTAL_EN[1];
+E_SCF_X.readProperty(propertyName = "MDCI_REF_ENERGY");
+E_Total_X.readProperty(propertyName="MDCI_TOTAL_EN");
 E_LD_X             = E_Total_X - E_SCF_X;  
 #
 #------------------------------------------------------------------------------
@@ -96,10 +98,11 @@ New_Step
 !HFLD aug-cc-pVQZ RIJK aug-cc-pVQZ/JK aug-cc-pV5Z/C VeryTightSCF TightPNO
 % MDCI TCutPNO 1e-8 printlevel 3 END
 % BASIS auxjk "autoaux" auxc "autoaux" autoauxlmax true END
+*xyzfile 0 1 &{molecule}
 Step_End
 #Read the values
-Read E_SCF_Y       = SCF_ENERGY[2];
-Read E_Total_Y     = JOB_INFO_TOTAL_EN[2];
+E_SCF_Y.readProperty(propertyName = "MDCI_REF_ENERGY");
+E_Total_Y.readProperty(propertyName="MDCI_TOTAL_EN");
 E_LD_Y             = E_Total_Y - E_SCF_Y;
 #
 #------------------------------------------------------------------------------

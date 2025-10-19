@@ -7,6 +7,9 @@
 # ------------------------------------------------------------------------------------
 
 # Optional variables:
+Variable molecule = "water.xyz";
+Variable charge   = 0;
+Variable mult     = 1;
 Variable NLOpt = "SCNL";        # Consistent with Q-Chem. "NL" likely very similar. Only matters for Step 1.
 Variable Basis = "def2-TZVP";   # Should be TZ or higher for reliable results
 Variable AuxC  = "def2-TZVP/C"; # RI-MP2 is used by default. Must be compatible with the Basis
@@ -22,6 +25,7 @@ Variable EwB97MV, EwB97M2;      # Will hold the final energies
 # Step 1: wB97M-V calculation to obtain the orbitals
 NewStep
   ! wB97M-V &{NLOpt} &{Grid} &{kw1}
+  *xyzfile &{charge} &{mult} &{molecule}
   %basis
     Basis "&{Basis}"
     AuxJ  "&{AuxJ}"

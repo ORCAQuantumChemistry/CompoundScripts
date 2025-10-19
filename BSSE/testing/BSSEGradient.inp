@@ -3,7 +3,7 @@
   #   It needs the water_dimer.xyz file where
   #   one water of the dimer is just ghost atoms. The
   #   xyz file should be in the current directory
-  # The file with copy the compound script from the parent
+  # The file will copy the compound script from the parent
   #   directory, create an ORCA input file and run it
   Variable fp;
   Variable script_basename = "BSSEGradient";

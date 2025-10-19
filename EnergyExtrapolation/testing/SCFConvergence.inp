@@ -1,16 +1,15 @@
 %Compound
-  # This is a testing file for BSSECorrection.cmp file
-  #   It needs the water_dimer.xyz file where
-  #   one water of the dimer is just ghost atoms. The
+  # This is a testing file for SCFConvergence.cmp file
+  #   It needs the water.xyz file. The
   #   xyz file should be in the current directory
   # The file will copy the compound script from the parent
   #   directory, create an ORCA input file and run it
   Variable fp;
-  Variable script_basename = "BSSECorrection";
+  Variable script_basename = "SCFConvergence";
   Variable orca_input_name, orca_output_name, script_name;
   Variable orca_command = "orca";
   Variable script_directory = "..";
-  Variable my_molecule = "water_dimer.xyz";
+  Variable my_molecule = "water.xyz";
 
   #1. Create names based on the basename
   write2String(script_name, "%s.cmp", script_basename);

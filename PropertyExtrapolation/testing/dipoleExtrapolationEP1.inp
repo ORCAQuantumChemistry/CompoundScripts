@@ -1,0 +1,33 @@
+%Compound
+  # This is a testing file for dipoleExtrapolationEP1.cmp file
+  #   It needs the water.xyz file. The
+  #   xyz file should be in the current directory
+  # The file will copy the compound script from the parent
+  #   directory, create an ORCA input file and run it
+  Variable fp;
+  Variable script_basename = "dipoleExtrapolationEP1";
+  Variable orca_input_name, orca_output_name, script_name;
+  Variable orca_command = "orca";
+  Variable script_directory = "..";
+  Variable my_molecule = "water.xyz";
+
+  #1. Create names based on the basename
+  write2String(script_name, "%s.cmp", script_basename);
+  write2String(orca_input_name, "test_%s.inp", script_basename);
+  write2String(orca_output_name, "test_%s.out", script_basename);
+
+  #2. Create the running ORCA file
+  fp = openFile(orca_input_name, "w");
+  write2File(fp, "\%Compound \"%s\"\n", script_name);
+  write2File(fp, "   with\n");
+  write2File(fp, "      molecule = \"%s\"\;\n", my_molecule);
+  write2File(fp, "EndRun\n");
+  closeFile(fp);
+
+  #3. Copy the compound script
+  syscmd("cp %s/%s .", script_directory, script_name);
+ 
+  #3. Run the new ORCA input
+  syscmd(" %s %s > %s &", orca_command, orca_input_name, orca_output_name);
+     
+EndRun

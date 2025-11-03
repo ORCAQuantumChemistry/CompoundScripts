@@ -14,7 +14,7 @@
 #    We achieve this with the compoundFilename
 #
 # 2. Create a script to run an ORCA calculalation with
-#    the external optimizer and the BSSE cprrected 
+#    the external optimizer and the BSSE corrected 
 #    gradient. We do that by running a script that runs
 #    an ORCA calculation that calculates the gradient
 #    and then copy this gradient file back to the expected
@@ -83,7 +83,7 @@ EndIf
 # -------------------------------------------------
 if (createORCAInput) then
   orcaInput = openFile(orcaInputName, "w");
-  Write2File(orcaInput, "%%Compound \"%s\"\n", gradCreateFile);
+  Write2File(orcaInput, "\%Compound \"%s\"\n", gradCreateFile);
   Write2File(orcaInput, "  with\n");
   Write2File(orcaInput, "    molecule          =\"%s_Compound_1_EXT.xyz\"\;\n", baseFilename);
   Write2File(orcaInput, "    charge            = %d\;\n",     charge);

@@ -84,7 +84,7 @@ EndIf
 # -------------------------------------------------
 if (createORCAInput) then
   orcaInput = openFile(orcaInputName, "w");
-  Write2File(orcaInput, "%%Compound \"%s\"\n", gradExtrapolation);
+  Write2File(orcaInput, " \%Compound \"%s\"\n", gradExtrapolation);
   Write2File(orcaInput, "  with\n");
   Write2File(orcaInput, "    Molecule       =\"%s_Compound_1_EXT.xyz\"\;\n", baseFilename);
   Write2File(orcaInput, "    charge         = %d\;\n",     charge);

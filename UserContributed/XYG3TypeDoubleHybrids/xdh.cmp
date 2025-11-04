@@ -3,6 +3,10 @@
 #
 # Final energy : EDH
 #
+
+Variable molecule;
+Variable charge = 0;
+Variable mult = 1;
 Variable xc = "xyg3";
 Variable basis = "def2-svp";
 Variable auxbas = "def2-svp/c";
@@ -23,44 +27,46 @@ if (xc = "xyg3") then
  scalldac = 0.6789;
 endif
 
-New_Step
-! b3lyp_g &{basis}
-! noautostart
-Step_End
+NewStep
+  !b3lyp_g &{basis}
+  !noautostart
+  *xyzfile &{charge} &{mult} &{molecule}
+StepEnd
 Alias scf
 
-Read_Geom scf
-Read_Mos scf
-New_Step
-! b3lyp_g &{basis}
-!  nopop 
-%scf 
- maxiter 1 
- ignoreconv true
-end
-%method
- Functional b3lyp_g
- ACM = &{acm[0]}, &{acm[1]},&{acm[2]}
- ScalLDAC = &{scalldac}
-end
-Step_End
-Alias nscf
+ReadMOs(scf);
+NewStep
+  !b3lyp_g &{basis}
+  !nopop 
+  %scf 
+    maxiter 1 
+    ignoreconv true
+  end
+  %method
+    Functional b3lyp_g
+    ACM = &{acm[0]}, &{acm[1]},&{acm[2]}
+    ScalLDAC = &{scalldac}
+  end
+StepEnd
+Enscf.ReadProperty(propertyName="SCF_Energy");
 
-Read_Geom scf
-Read_Mos scf
-New_Step
-! RI-MP2 &{basis} &{auxbas}
-! noiter nopop
-! nofrozencore
-%mp2
- dlpno &{dlpno}
-end
-Step_End
-Alias pt2
-
-read Enscf = SCF_ENERGY[nscf];
-read Ept2 = MP2_CORR_ENERGY[pt2];
+ReadMOs(scf);
+NewStep
+  !RI-MP2 &{basis} &{auxbas}
+  !noiter nopop
+  !nofrozencore
+  %mp2
+    dlpno &{dlpno}
+  end
+StepEnd
+Ept2.ReadProperty(propertyName="MP2_CORR_ENERGY");
 
 Edh = (Enscf + Ept2*pt2_coeff);
 
-End
+print("-------------   Results  ----------------\n");
+print("pt2 coef  : %20.8lf\n", pt2_coeff);
+print("Enscf     : %20.8lf\n", Enscf);
+print("Ept2      : %20.8lf\n", Ept2);
+print("Edh       : %20.8lf\n", Edh);
+
+EndRun
